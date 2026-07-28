@@ -1,20 +1,35 @@
-import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import type { Metadata, Viewport } from "next"
+import { Geist_Mono, Noto_Sans_Hebrew } from "next/font/google"
 import "./globals.css"
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const notoHebrew = Noto_Sans_Hebrew({
+  variable: "--font-noto-hebrew",
+  subsets: ["hebrew"],
+  display: "swap",
 })
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 })
 
 export const metadata: Metadata = {
-  title: "Fax Direct | שולחים פקס בקלות",
-  description: "שירות פשוט ומאובטח לשליחת פקס בישראל",
+  title: "שליחת פקס אונליין ללא הרשמה | Fax Direct",
+  description:
+    "שולחים פקס אונליין בישראל בלי מכונת פקס ובלי הרשמה. מעלים קובץ PDF, מזינים את מספר הנמען, משלמים ₪9.90 ועוקבים אחרי מצב השליחה באותו עמוד.",
+  applicationName: "Fax Direct",
+  openGraph: {
+    title: "שליחת פקס אונליין ללא הרשמה | Fax Direct",
+    description:
+      "שליחת פקס חד־פעמית מהדפדפן: קובץ PDF, מספר נמען, ₪9.90 ומעקב אחרי המסירה.",
+    locale: "he_IL",
+    type: "website",
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
 }
 
 export default function RootLayout({
@@ -26,7 +41,7 @@ export default function RootLayout({
     <html
       lang="he"
       dir="rtl"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${notoHebrew.variable} ${geistMono.variable}`}
     >
       <head>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml"></link>

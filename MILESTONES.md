@@ -11,11 +11,13 @@ Implemented:
 - Local Next.js development and Cloudflare preview commands
 - Cloudflare Worker, assets, image, and self-reference bindings
 - shadcn/ui foundation with RTL-compatible components
+- Hebrew right-to-left page shell: single-screen fax sheet with document, recipient,
+  and payment zones
 - Product architecture and lifecycle documented in `README.md`
 
 Not yet implemented:
 
-- Interactive fax flow
+- Fax-flow interactivity and state handling behind the interface
 - PDF upload and page counting
 - Recipient validation
 - Pricing logic
@@ -79,7 +81,7 @@ Status: **In progress**
 - [ ] Add backend-only PDF page counting.
 - [ ] Display the verified page count.
 - [ ] Add Israeli recipient validation.
-- [x] Add fixed-price display.
+- [ ] Add fixed-price display.
 - [ ] Add simulated payment.
 - [ ] Add simulated transmission states.
 - [ ] Add restart behavior.
@@ -123,3 +125,6 @@ Status: **In progress**
 | 2026-07-29 | The initial price is a flat ₪9.90 for a fax of up to 10 pages. |
 | 2026-07-29 | PDF validation and page counting run only on the backend.     |
 | 2026-07-29 | Use shadcn/ui base-nova components with RTL generation.       |
+| 2026-07-29 | Use Noto Sans Hebrew; Latin falls back to the system UI sans.  |
+| 2026-07-29 | The whole flow fits one screen; no marketing page below it.   |
+| 2026-07-29 | The page shell is presentational until the flow is wired.     |
