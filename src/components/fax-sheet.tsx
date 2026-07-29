@@ -16,6 +16,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
+import {
+  validateIsraeliFaxNumber,
+  type IsraeliFaxNumberValidationResult,
+} from "@/shared/phone/validate-israeli-fax-number"
 
 type InspectionResult = {
   pageCount: number
@@ -57,6 +61,8 @@ export function FaxSheet() {
   const [error, setError] = useState<string | null>(null)
   const [isInspecting, setIsInspecting] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [recipient, setRecipient] = useState("")
+  const [recipientError, setRecipientError] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const dragDepthRef = useRef(0)
 
@@ -140,6 +146,29 @@ export function FaxSheet() {
 
     if (selectedFile) {
       void inspectSelectedFile(selectedFile)
+    }
+  }
+
+  function validateRecipient(): boolean {
+    const result = validateIsraeliFaxNumber(recipient)
+
+    if (!result.ok) {
+      setRecipientError(getRecipientErrorMessage(result.code))
+      return false
+    }
+
+    setRecipientError(null)
+    return true
+  }
+
+  function handleRecipientChange(value: string) {
+    setRecipient(value)
+
+    if (recipientError) {
+      const result = validateIsraeliFaxNumber(value)
+      setRecipientError(
+        result.ok ? null : getRecipientErrorMessage(result.code)
+      )
     }
   }
 
@@ -279,9 +308,18 @@ export function FaxSheet() {
               <StepRule step="02" htmlFor="recipient-fax">
                 מספר הפקס של הנמען
               </StepRule>
-              <div className="flex h-11 items-center gap-2.5 rounded-xl border border-input bg-card px-3 transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/40">
+              <div
+                className={cn(
+                  "flex h-11 items-center gap-2.5 rounded-xl border border-input bg-card px-3 transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/40",
+                  recipientError &&
+                    "border-destructive ring-3 ring-destructive/20 focus-within:border-destructive focus-within:ring-destructive/20"
+                )}
+              >
                 <Phone
-                  className="size-4 shrink-0 text-muted-foreground"
+                  className={cn(
+                    "size-4 shrink-0 text-muted-foreground",
+                    recipientError && "text-destructive"
+                  )}
                   aria-hidden="true"
                 />
                 <Input
@@ -292,11 +330,26 @@ export function FaxSheet() {
                   autoComplete="tel"
                   dir="ltr"
                   placeholder="03-1234567"
+                  value={recipient}
+                  onChange={(event) =>
+                    handleRecipientChange(event.currentTarget.value)
+                  }
+                  onBlur={validateRecipient}
+                  aria-invalid={Boolean(recipientError)}
+                  aria-describedby="recipient-fax-description"
                   className="h-full border-0 bg-transparent px-0 text-end font-mono text-base tracking-wide placeholder:text-muted-foreground/45 focus-visible:border-0 focus-visible:ring-0 md:text-base dark:bg-transparent"
                 />
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                מספר בישראל כולל קידומת אזור. לא ניתן לשלוח למספרי נייד.
+              <p
+                id="recipient-fax-description"
+                role={recipientError ? "alert" : undefined}
+                className={cn(
+                  "text-xs leading-relaxed text-muted-foreground",
+                  recipientError && "text-destructive"
+                )}
+              >
+                {recipientError ??
+                  "מספר בישראל, כולל קידומת. אפשר להזין גם בפורמט בינלאומי."}
               </p>
             </div>
 
@@ -332,7 +385,11 @@ export function FaxSheet() {
             </div>
 
             <div className="mt-auto flex flex-col gap-2.5">
-              <Button className="h-11 w-full text-[0.95rem]">
+              <Button
+                type="button"
+                onClick={validateRecipient}
+                className="h-11 w-full text-[0.95rem]"
+              >
                 שליחת הפקס
                 <MoveLeft data-icon="inline-end" aria-hidden="true" />
               </Button>
@@ -346,6 +403,22 @@ export function FaxSheet() {
       </div>
     </Card>
   )
+}
+
+function getRecipientErrorMessage(
+  code: Exclude<
+    IsraeliFaxNumberValidationResult,
+    { ok: true }
+  >["code"]
+): string {
+  switch (code) {
+    case "EMPTY":
+      return "יש להזין מספר פקס."
+    case "UNSUPPORTED_COUNTRY":
+      return "בשלב זה ניתן לשלוח פקס למספרים בישראל בלבד."
+    case "INVALID_NUMBER":
+      return "מספר הפקס אינו תקין. בדקו את המספר ונסו שוב."
+  }
 }
 
 function isInspectionResult(value: unknown): value is InspectionResult {
