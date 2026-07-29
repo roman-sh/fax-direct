@@ -29,6 +29,12 @@
       "service": "fax-direct",
     },
   ],
+  "kv_namespaces": [
+    {
+      "binding": "MARKET_CONFIG",
+      "id": "c698a6ad54a348548908eb1e24dc7d83",
+    },
+  ],
   "observability": {
     "enabled": true,
   },

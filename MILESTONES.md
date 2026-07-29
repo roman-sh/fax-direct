@@ -11,6 +11,7 @@ Implemented:
 - Local Next.js development and Cloudflare preview commands
 - Cloudflare Worker, assets, image, and self-reference bindings
 - shadcn/ui foundation with RTL-compatible components
+- Validated Israel market configuration backed by Cloudflare Workers KV
 - Hebrew right-to-left page shell: single-screen fax sheet with document, recipient,
   and payment zones
 - Product architecture and lifecycle documented in `README.md`
@@ -73,12 +74,12 @@ Status: **In progress**
 - [x] Initialize shadcn/ui with RTL support.
 - [x] Add Card, Field, Input, Button, Alert, Spinner, and Badge.
 - [ ] Define fax-flow states and events.
-- [ ] Add Israel market configuration.
+- [x] Add Israel market configuration.
 - [x] Build the Hebrew RTL page shell.
 - [ ] Add PDF selection and upload.
-- [ ] Add the backend PDF inspection route.
-- [ ] Add backend PDF parsing and validation.
-- [ ] Add backend-only PDF page counting.
+- [x] Add the backend PDF inspection route.
+- [x] Add backend PDF parsing and validation.
+- [x] Add backend-only PDF page counting.
 - [ ] Display the verified page count.
 - [ ] Add Israeli recipient validation.
 - [ ] Add fixed-price display.

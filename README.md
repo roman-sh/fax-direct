@@ -232,8 +232,14 @@ Planned application directories:
 | `npm install`          | Install dependencies                                  |
 | `npm run dev`          | Run the normal Next.js development server             |
 | `npm run build`        | Create a regular Next.js production build             |
+| `npm run config:seed`  | Validate and seed market configuration in local KV     |
+| `npm run config:publish` | Validate and publish market configuration to remote KV |
 | `npm run preview`      | Build and run in the local Cloudflare Workers runtime |
 | `npm run deploy`       | Build through OpenNext and deploy to Cloudflare       |
+
+Market settings are edited in `config/market.il.json`. Both configuration commands
+validate the file before writing the `market:IL` KV entry and verify the stored value
+afterward. Publishing configuration does not redeploy the application.
 
 Workflows, Durable Objects, and R2 can be simulated locally through Wrangler.
 Production provider webhooks can be represented by test routes or forwarded to the
