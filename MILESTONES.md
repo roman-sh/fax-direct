@@ -12,6 +12,8 @@ Implemented:
 - Cloudflare Worker, assets, image, and self-reference bindings
 - shadcn/ui foundation with RTL-compatible components
 - Validated Israel market configuration backed by Cloudflare Workers KV
+- Backend PDF inspection with file validation, page counting, and KV-backed pricing
+- Frontend PDF selection, drag-and-drop, inspection states, and verified results
 - Hebrew right-to-left page shell: single-screen fax sheet with document, recipient,
   and payment zones
 - Product architecture and lifecycle documented in `README.md`
@@ -19,9 +21,7 @@ Implemented:
 Not yet implemented:
 
 - Fax-flow interactivity and state handling behind the interface
-- PDF upload and page counting
 - Recipient validation
-- Pricing logic
 - R2 document storage
 - Payment integration
 - Fax provider integration
@@ -76,18 +76,19 @@ Status: **In progress**
 - [ ] Define fax-flow states and events.
 - [x] Add Israel market configuration.
 - [x] Build the Hebrew RTL page shell.
-- [ ] Add PDF selection and upload.
+- [x] Add PDF selection and upload.
 - [x] Add the backend PDF inspection route.
 - [x] Add backend PDF parsing and validation.
 - [x] Add backend-only PDF page counting.
-- [ ] Display the verified page count.
+- [x] Display the verified page count.
 - [ ] Add Israeli recipient validation.
-- [ ] Add fixed-price display.
+- [x] Add fixed-price display.
 - [ ] Add simulated payment.
 - [ ] Add simulated transmission states.
 - [ ] Add restart behavior.
 - [ ] Verify responsive layout.
-- [ ] Verify Next.js and OpenNext builds.
+- [x] Verify Next.js and OpenNext builds.
+- [x] Profile deployed Worker CPU time with representative PDFs.
 
 ## Later milestones
 
@@ -129,3 +130,7 @@ Status: **In progress**
 | 2026-07-29 | Use Noto Sans Hebrew; Latin falls back to the system UI sans.  |
 | 2026-07-29 | The whole flow fits one screen; no marketing page below it.   |
 | 2026-07-29 | The page shell is presentational until the flow is wired.     |
+| 2026-07-29 | Store Israel limits and pricing in the `market:IL` Workers KV entry. |
+| 2026-07-29 | Return verified page count and backend-owned price from PDF inspection. |
+| 2026-07-29 | Use Workers Paid after real PDF inspection exceeded the Free CPU limit. |
+| 2026-07-29 | Use `unpdf` so permission-restricted PDFs work while opening-password PDFs are rejected. |

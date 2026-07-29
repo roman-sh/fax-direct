@@ -241,6 +241,11 @@ Market settings are edited in `config/market.il.json`. Both configuration comman
 validate the file before writing the `market:IL` KV entry and verify the stored value
 afterward. Publishing configuration does not redeploy the application.
 
+Workers KV is used for operational market settings—currently the page limit, file-size
+limit, and price—so they can be changed without rebuilding or redeploying the Worker.
+The backend reads KV as the source of truth and validates every value with Zod before
+using it; invalid or missing configuration fails safely instead of applying defaults.
+
 Workflows, Durable Objects, and R2 can be simulated locally through Wrangler.
 Production provider webhooks can be represented by test routes or forwarded to the
 local Worker.

@@ -1,5 +1,8 @@
-import { getMarketConfig, MarketConfigError } from "@/config/get-market-config"
-import { inspectPdf, PdfInspectionError } from "@/pdf/inspect-pdf"
+import {
+  getMarketConfig,
+  MarketConfigError,
+} from "@/server/config/get-market-config"
+import { inspectPdf, PdfInspectionError } from "@/server/pdf/inspect-pdf"
 
 export const runtime = "nodejs"
 

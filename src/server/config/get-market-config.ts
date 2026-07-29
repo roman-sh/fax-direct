@@ -1,9 +1,11 @@
+import "server-only"
+
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 
 import {
   marketConfigSchema,
   type MarketConfig,
-} from "@/config/market-config-schema"
+} from "@/server/config/market-config-schema"
 
 export type MarketCode = "IL"
 

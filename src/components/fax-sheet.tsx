@@ -1,9 +1,29 @@
-import { FileText, Lock, MoveLeft, Phone } from "lucide-react"
+"use client"
+
+import { useEffect, useRef, useState } from "react"
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileText,
+  Lock,
+  MoveLeft,
+  Phone,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
+import { cn } from "@/lib/utils"
+
+type InspectionResult = {
+  pageCount: number
+  price: {
+    amount: string
+    currency: string
+  }
+}
 
 function StepRule({
   step,
@@ -32,6 +52,101 @@ function StepRule({
 }
 
 export function FaxSheet() {
+  const [file, setFile] = useState<File | null>(null)
+  const [inspection, setInspection] = useState<InspectionResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isInspecting, setIsInspecting] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const dragDepthRef = useRef(0)
+
+  useEffect(() => {
+    return () => abortControllerRef.current?.abort()
+  }, [])
+
+  async function inspectSelectedFile(selectedFile: File) {
+    abortControllerRef.current?.abort()
+
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+
+    setFile(selectedFile)
+    setInspection(null)
+    setError(null)
+    setIsInspecting(true)
+
+    const formData = new FormData()
+    formData.set("file", selectedFile)
+
+    try {
+      const response = await fetch("/api/pdf/inspect", {
+        method: "POST",
+        body: formData,
+        signal: abortController.signal,
+      })
+      const payload: unknown = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(getErrorMessage(payload))
+      }
+
+      if (!isInspectionResult(payload)) {
+        throw new Error("התקבלה תשובה לא תקינה מהשרת. נסו שוב.")
+      }
+
+      setInspection(payload)
+    } catch (caughtError) {
+      if (
+        caughtError instanceof DOMException &&
+        caughtError.name === "AbortError"
+      ) {
+        return
+      }
+
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "לא הצלחנו לבדוק את הקובץ. נסו שוב."
+      )
+    } finally {
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null
+        setIsInspecting(false)
+      }
+    }
+  }
+
+  function handleDragEnter(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault()
+    dragDepthRef.current += 1
+    setIsDragging(true)
+  }
+
+  function handleDragLeave(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault()
+    dragDepthRef.current -= 1
+
+    if (dragDepthRef.current === 0) {
+      setIsDragging(false)
+    }
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault()
+    dragDepthRef.current = 0
+    setIsDragging(false)
+
+    const selectedFile = event.dataTransfer.files.item(0)
+
+    if (selectedFile) {
+      void inspectSelectedFile(selectedFile)
+    }
+  }
+
+  const displayedPrice = inspection
+    ? formatPrice(inspection.price)
+    : "₪9.90"
+
   return (
     <Card className="w-full max-w-5xl gap-0 py-0 shadow-[0_1px_2px_oklch(0.198_0.01_65/0.06),0_20px_48px_-24px_oklch(0.198_0.01_65/0.28)]">
       <div className="flex h-full flex-col">
@@ -45,7 +160,7 @@ export function FaxSheet() {
               dir="ltr"
               className="font-semibold tabular-nums text-foreground"
             >
-              ₪9.90
+              {displayedPrice}
             </span>
           </span>
         </div>
@@ -62,39 +177,99 @@ export function FaxSheet() {
               type="file"
               accept="application/pdf,.pdf"
               className="peer sr-only"
+              onChange={(event) => {
+                const selectedFile = event.currentTarget.files?.item(0)
+                event.currentTarget.value = ""
+
+                if (selectedFile) {
+                  void inspectSelectedFile(selectedFile)
+                }
+              }}
             />
             <label
               htmlFor="fax-document"
-              className="group flex min-h-32 flex-1 cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-input bg-muted/70 p-5 text-center transition-colors hover:border-brand/60 hover:bg-brand-subtle/70 peer-focus-visible:border-ring peer-focus-visible:ring-3 peer-focus-visible:ring-ring/40 sm:gap-5 sm:p-6 sm:min-h-36"
+              onDragEnter={handleDragEnter}
+              onDragOver={(event) => event.preventDefault()}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={cn(
+                "group flex min-h-32 flex-1 cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-input bg-muted/70 p-5 text-center transition-colors hover:border-brand/60 hover:bg-brand-subtle/70 peer-focus-visible:border-ring peer-focus-visible:ring-3 peer-focus-visible:ring-ring/40 sm:min-h-36 sm:gap-5 sm:p-6",
+                isDragging && "border-brand bg-brand-subtle/80",
+                error && "border-destructive/60 bg-destructive/5",
+                inspection && "border-success/60 bg-success-subtle/55"
+              )}
             >
-              <span className="relative block h-20 w-15 transition-transform group-hover:-translate-y-0.5">
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-0 -rotate-12 rounded-md border border-input bg-background"
-                />
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-0 rotate-6 rounded-md border border-input bg-background"
-                />
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-0 flex items-center justify-center rounded-md border border-border bg-card text-brand"
-                >
-                  <FileText className="size-6" />
+              {isInspecting ? (
+                <span className="flex h-20 w-15 items-center justify-center rounded-md border border-border bg-card text-brand">
+                  <Spinner className="size-6" aria-label="בודקים את הקובץ" />
                 </span>
-              </span>
+              ) : (
+                <span className="relative block h-20 w-15 transition-transform group-hover:-translate-y-0.5">
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 -rotate-12 rounded-md border border-input bg-background"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 rotate-6 rounded-md border border-input bg-background"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "absolute inset-0 flex items-center justify-center rounded-md border border-border bg-card text-brand",
+                      error && "text-destructive",
+                      inspection && "text-success"
+                    )}
+                  >
+                    {error ? (
+                      <AlertCircle className="size-6" />
+                    ) : inspection ? (
+                      <CheckCircle2 className="size-6" />
+                    ) : (
+                      <FileText className="size-6" />
+                    )}
+                  </span>
+                </span>
+              )}
 
-              <span className="flex flex-col gap-1">
-                <span className="text-[0.95rem] font-semibold">
-                  גררו לכאן קובץ PDF
+              <span
+                className="flex min-w-0 max-w-full flex-col gap-1"
+                aria-live="polite"
+              >
+                <span
+                  dir={inspection && file ? "ltr" : undefined}
+                  title={file?.name}
+                  className={cn(
+                    "max-w-full truncate text-[0.95rem] font-semibold",
+                    error && "text-destructive"
+                  )}
+                >
+                  {isInspecting
+                    ? "בודקים את הקובץ…"
+                    : error
+                      ? error
+                      : inspection && file
+                        ? file.name
+                        : "גררו לכאן קובץ PDF"}
                 </span>
-                <span className="text-sm text-muted-foreground">
-                  או לחצו כדי לבחור קובץ מהמחשב
+                <span
+                  dir={isInspecting && file ? "ltr" : undefined}
+                  className="text-sm text-muted-foreground"
+                >
+                  {isInspecting
+                    ? file?.name
+                    : error
+                      ? "לחצו או גררו קובץ אחר כדי לנסות שוב"
+                      : inspection
+                        ? `${inspection.pageCount} ${inspection.pageCount === 1 ? "עמוד" : "עמודים"} · לחצו להחלפת הקובץ`
+                        : "או לחצו כדי לבחור קובץ מהמחשב"}
                 </span>
               </span>
 
               <span className="font-mono text-[0.7rem] tracking-wide text-muted-foreground">
-                PDF · עד 10 עמודים · עד 10MB
+                {file && inspection
+                  ? `${formatFileSize(file.size)} · PDF תקין`
+                  : "PDF · עד 10 עמודים · עד 10MB"}
               </span>
             </label>
           </div>
@@ -134,7 +309,14 @@ export function FaxSheet() {
                     aria-hidden="true"
                     className="flex-1 border-b border-dotted border-border"
                   />
-                  <dd className="font-mono text-muted-foreground">—</dd>
+                  <dd
+                    className={cn(
+                      "font-mono text-muted-foreground",
+                      inspection && "font-semibold text-foreground"
+                    )}
+                  >
+                    {inspection?.pageCount ?? "—"}
+                  </dd>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <dt className="text-sm font-medium">סה״כ לתשלום</dt>
@@ -143,7 +325,7 @@ export function FaxSheet() {
                     className="flex-1 border-b border-dotted border-border"
                   />
                   <dd dir="ltr" className="text-xl font-bold tabular-nums">
-                    ₪9.90
+                    {displayedPrice}
                   </dd>
                 </div>
               </dl>
@@ -164,4 +346,46 @@ export function FaxSheet() {
       </div>
     </Card>
   )
+}
+
+function isInspectionResult(value: unknown): value is InspectionResult {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const result = value as Partial<InspectionResult>
+
+  return (
+    Number.isInteger(result.pageCount) &&
+    Boolean(result.price) &&
+    typeof result.price?.amount === "string" &&
+    typeof result.price.currency === "string"
+  )
+}
+
+function getErrorMessage(value: unknown): string {
+  if (
+    value &&
+    typeof value === "object" &&
+    "message" in value &&
+    typeof value.message === "string"
+  ) {
+    return value.message
+  }
+
+  return "לא הצלחנו לבדוק את הקובץ. נסו שוב."
+}
+
+function formatPrice(price: InspectionResult["price"]): string {
+  return price.currency === "ILS"
+    ? `₪${price.amount}`
+    : `${price.amount} ${price.currency}`
+}
+
+function formatFileSize(bytes: number): string {
+  const megabytes = bytes / 1024 / 1024
+
+  return megabytes >= 1
+    ? `${megabytes.toFixed(1)}MB`
+    : `${Math.max(1, Math.round(bytes / 1024))}KB`
 }
