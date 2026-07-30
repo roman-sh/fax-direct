@@ -1,8 +1,13 @@
 import { AppBar } from "@/components/app-bar"
 import { FactsBar } from "@/components/facts-bar"
 import { FaxSheet } from "@/components/fax-sheet"
+import { getMarketConfig } from "@/server/config/get-market-config"
 
-export default function Home() {
+export const dynamic = "force-dynamic"
+
+export default async function Home() {
+  const config = await getMarketConfig("IL")
+
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       <AppBar />
@@ -18,7 +23,10 @@ export default function Home() {
             </p>
           </div>
 
-          <FaxSheet />
+          <FaxSheet
+            maxFileBytes={config.fax.maxFileBytes}
+            maxPages={config.fax.maxPages}
+          />
         </div>
       </main>
 

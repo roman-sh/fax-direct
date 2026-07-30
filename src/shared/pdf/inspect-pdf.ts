@@ -1,5 +1,3 @@
-import "server-only"
-
 import { getDocumentProxy } from "unpdf"
 import {
   PasswordException,
@@ -7,11 +5,23 @@ import {
   type PDFDocumentProxy,
 } from "unpdf/pdfjs"
 
+const ACCEPTED_PDF_TYPES = new Set([
+  "application/pdf",
+  "application/x-pdf",
+])
+
 export type PdfInspectionErrorCode =
   | "ENCRYPTED_PDF"
   | "EMPTY_PDF"
+  | "FILE_TOO_LARGE"
+  | "INVALID_FILE_TYPE"
   | "INVALID_PDF"
   | "TOO_MANY_PAGES"
+
+export type PdfInspectionLimits = {
+  maxFileBytes: number
+  maxPages: number
+}
 
 export class PdfInspectionError extends Error {
   constructor(
@@ -23,7 +33,35 @@ export class PdfInspectionError extends Error {
   }
 }
 
-export async function inspectPdf(
+export async function inspectPdfFile(
+  file: File,
+  limits: PdfInspectionLimits
+): Promise<{ pageCount: number }> {
+  if (file.type && !ACCEPTED_PDF_TYPES.has(file.type)) {
+    throw new PdfInspectionError(
+      "INVALID_FILE_TYPE",
+      "ניתן להעלות קובצי PDF בלבד."
+    )
+  }
+
+  if (file.size > limits.maxFileBytes) {
+    throw new PdfInspectionError(
+      "FILE_TOO_LARGE",
+      `גודל הקובץ המרבי הוא ${formatMegabytes(limits.maxFileBytes)}MB.`
+    )
+  }
+
+  if (file.size === 0) {
+    throw new PdfInspectionError("EMPTY_PDF", "קובץ ה-PDF ריק.")
+  }
+
+  return inspectPdf(
+    new Uint8Array(await file.arrayBuffer()),
+    limits.maxPages
+  )
+}
+
+async function inspectPdf(
   bytes: Uint8Array,
   maxPages: number
 ): Promise<{ pageCount: number }> {
@@ -72,4 +110,10 @@ export async function inspectPdf(
       console.warn("Could not release PDF inspection resources:", error)
     })
   }
+}
+
+function formatMegabytes(bytes: number): string {
+  return Number.isInteger(bytes / 1024 / 1024)
+    ? String(bytes / 1024 / 1024)
+    : (bytes / 1024 / 1024).toFixed(1)
 }

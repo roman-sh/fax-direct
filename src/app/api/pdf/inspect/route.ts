@@ -2,7 +2,11 @@ import {
   getMarketConfig,
   MarketConfigError,
 } from "@/server/config/get-market-config"
-import { inspectPdf, PdfInspectionError } from "@/server/pdf/inspect-pdf"
+import {
+  inspectPdfFile,
+  PdfInspectionError,
+  type PdfInspectionErrorCode,
+} from "@/shared/pdf/inspect-pdf"
 
 export const runtime = "nodejs"
 
@@ -11,8 +15,6 @@ type MarketConfig = Awaited<ReturnType<typeof getMarketConfig>>
 type ErrorCode =
   | "CONFIG_UNAVAILABLE"
   | "FILE_REQUIRED"
-  | "FILE_TOO_LARGE"
-  | "INVALID_FILE_TYPE"
   | "INVALID_REQUEST"
   | "INTERNAL_ERROR"
 
@@ -51,35 +53,8 @@ export async function POST(request: Request): Promise<Response> {
     return errorResponse("FILE_REQUIRED", "יש לבחור קובץ PDF.", 400)
   }
 
-  if (
-    file.type &&
-    file.type !== "application/pdf" &&
-    file.type !== "application/x-pdf"
-  ) {
-    return errorResponse(
-      "INVALID_FILE_TYPE",
-      "ניתן להעלות קובצי PDF בלבד.",
-      415
-    )
-  }
-
-  if (file.size > config.fax.maxFileBytes) {
-    return errorResponse(
-      "FILE_TOO_LARGE",
-      `גודל הקובץ המרבי הוא ${formatMegabytes(config.fax.maxFileBytes)}MB.`,
-      413
-    )
-  }
-
-  if (file.size === 0) {
-    return errorResponse("INVALID_PDF", "קובץ ה-PDF ריק.", 422)
-  }
-
   try {
-    const result = await inspectPdf(
-      new Uint8Array(await file.arrayBuffer()),
-      config.fax.maxPages
-    )
+    const result = await inspectPdfFile(file, config.fax)
 
     return Response.json(
       {
@@ -94,7 +69,11 @@ export async function POST(request: Request): Promise<Response> {
     )
   } catch (error) {
     if (error instanceof PdfInspectionError) {
-      return errorResponse(error.code, error.message, 422)
+      return errorResponse(
+        error.code,
+        error.message,
+        pdfInspectionStatus(error.code)
+      )
     }
 
     console.error("Unexpected PDF inspection error:", error)
@@ -122,8 +101,14 @@ function errorResponse(
   )
 }
 
-function formatMegabytes(bytes: number): string {
-  return Number.isInteger(bytes / 1024 / 1024)
-    ? String(bytes / 1024 / 1024)
-    : (bytes / 1024 / 1024).toFixed(1)
+function pdfInspectionStatus(code: PdfInspectionErrorCode): number {
+  if (code === "FILE_TOO_LARGE") {
+    return 413
+  }
+
+  if (code === "INVALID_FILE_TYPE") {
+    return 415
+  }
+
+  return 422
 }
