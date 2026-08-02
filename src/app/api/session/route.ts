@@ -1,3 +1,15 @@
+/**
+ * Creates or restores the browser's fax-session identity.
+ *
+ * The HttpOnly cookie contains a human-friendly Crockford Base32 code. That
+ * same code is the Durable Object name, so Cloudflare can route every request
+ * from this browser to the same FaxSession instance without a database lookup.
+ *
+ * Calling getSession() reads the instance's current state. An empty session is
+ * returned but not persisted yet; later workflow actions will write meaningful
+ * document, recipient, and quote data. This is a POST because it may set the
+ * cookie, and every response is marked no-store to prevent session caching.
+ */
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { cookies } from "next/headers"
 
