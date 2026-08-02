@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  useEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -188,6 +189,27 @@ export function FaxSheet({
   const [recipient, setRecipient] = useState("")
   const [recipientTouched, setRecipientTouched] = useState(false)
   const inspectionSequence = useRef(0)
+  const sessionInitializationStarted = useRef(false)
+
+  useEffect(() => {
+    if (sessionInitializationStarted.current) {
+      return
+    }
+
+    sessionInitializationStarted.current = true
+
+    void fetch("/api/session", {
+      method: "POST",
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Session initialization failed: ${response.status}`)
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("Could not initialize fax session:", error)
+      })
+  }, [])
 
   const fileSummary = file?.name ?? "document.pdf"
   const recipientSummary = recipient.trim() || "מספר הנמען"

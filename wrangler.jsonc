@@ -9,7 +9,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "fax-direct",
-  "main": ".open-next/worker.js",
+  "main": "worker.ts",
   "compatibility_date": "2026-07-28",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
@@ -35,6 +35,20 @@
       "id": "c698a6ad54a348548908eb1e24dc7d83",
     },
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "FAX_SESSIONS",
+        "class_name": "FaxSession",
+      },
+    ],
+  },
+  "exports": {
+    "FaxSession": {
+      "type": "durable-object",
+      "storage": "sqlite",
+    },
+  },
   "observability": {
     "enabled": true,
   },
