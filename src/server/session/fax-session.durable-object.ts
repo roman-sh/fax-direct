@@ -11,9 +11,11 @@ import {
 import {
   type FaxSessionDocument,
   type FaxSessionData,
+  type FaxSessionPayment,
   type FaxSessionQuote,
   type FaxSessionRecipient,
 } from "@/shared/session/fax-session.types"
+import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
 
 const LEGACY_SESSION_STORAGE_KEY = "session"
 const SESSION_ROW_ID = 1
@@ -68,6 +70,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
 
     return {
       document: documentFromRow(row),
+      payment: paymentFromRow(row),
       quote: quoteFromRow(row),
       recipient: recipientFromRow(row),
     }
@@ -119,6 +122,93 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
 
     return updated === undefined ? null : this.getSession()
   }
+
+  /** Starts payment only when the session contains a complete server quote. */
+  async startPayment(): Promise<{
+    session: FaxSessionData
+    started: boolean
+  } | null> {
+    const current = await this.getSession()
+
+    if (current.payment) {
+      return {
+        session: current,
+        started: false,
+      }
+    }
+
+    const updated = this.db
+      .update(faxSessionTable)
+      .set({
+        paymentStatus: PAYMENT_STATUS.PENDING,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .where(
+        and(
+          eq(faxSessionTable.id, SESSION_ROW_ID),
+          isNotNull(faxSessionTable.documentObjectKey),
+          isNotNull(faxSessionTable.recipientE164),
+          isNotNull(faxSessionTable.quoteAmount),
+          isNotNull(faxSessionTable.quoteCurrency)
+        )
+      )
+      .returning({ id: faxSessionTable.id })
+      .get()
+
+    if (!updated) {
+      return null
+    }
+
+    return {
+      session: await this.getSession(),
+      started: true,
+    }
+  }
+
+  /** Rolls back a pending state when scheduling its callback fails. */
+  async cancelPendingPayment(): Promise<FaxSessionData> {
+    this.db
+      .update(faxSessionTable)
+      .set({
+        paymentStatus: null,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .where(
+        and(
+          eq(faxSessionTable.id, SESSION_ROW_ID),
+          eq(faxSessionTable.paymentStatus, PAYMENT_STATUS.PENDING)
+        )
+      )
+      .run()
+
+    return this.getSession()
+  }
+
+  /** Confirms a pending payment; duplicate confirmations remain harmless. */
+  async confirmPayment(): Promise<FaxSessionData | null> {
+    const current = await this.getSession()
+
+    if (current.payment?.status === PAYMENT_STATUS.PAID) {
+      return current
+    }
+
+    const updated = this.db
+      .update(faxSessionTable)
+      .set({
+        paymentStatus: PAYMENT_STATUS.PAID,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .where(
+        and(
+          eq(faxSessionTable.id, SESSION_ROW_ID),
+          eq(faxSessionTable.paymentStatus, PAYMENT_STATUS.PENDING)
+        )
+      )
+      .returning({ id: faxSessionTable.id })
+      .get()
+
+    return updated === undefined ? null : this.getSession()
+  }
 }
 
 function documentFromRow(row: FaxSessionRow): FaxSessionDocument | null {
@@ -161,5 +251,15 @@ function quoteFromRow(row: FaxSessionRow): FaxSessionQuote | null {
   return {
     amount: row.quoteAmount,
     currency: row.quoteCurrency,
+  }
+}
+
+function paymentFromRow(row: FaxSessionRow): FaxSessionPayment | null {
+  if (row.paymentStatus === null) {
+    return null
+  }
+
+  return {
+    status: row.paymentStatus,
   }
 }

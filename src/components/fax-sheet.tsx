@@ -16,6 +16,7 @@ import { RecipientStep } from "@/components/fax-flow/recipient-step"
 import { useDocumentUpload } from "@/components/fax-flow/use-document-upload"
 import { useFaxSession } from "@/components/fax-flow/use-fax-session"
 import { usePdfInspection } from "@/components/fax-flow/use-pdf-inspection"
+import { usePayment } from "@/components/fax-flow/use-payment"
 import { useRecipientSave } from "@/components/fax-flow/use-recipient-save"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -78,6 +79,7 @@ function HydratedFaxFlow({
     session.document ? (session.recipient?.displayValue ?? "") : ""
   )
   const documentUpload = useDocumentUpload()
+  const payment = usePayment()
   const recipientSave = useRecipientSave()
   const { file, inspection, selectFile } = usePdfInspection({
     maxFileBytes,
@@ -146,6 +148,14 @@ function HydratedFaxFlow({
     }
   }
 
+  async function handleStartPayment() {
+    const updatedSession = await payment.start()
+
+    if (updatedSession) {
+      onSessionChange(updatedSession)
+    }
+  }
+
   return (
     <section
       className="w-full max-w-6xl"
@@ -203,8 +213,11 @@ function HydratedFaxFlow({
               session.recipient?.displayValue ?? recipientSummary
             }
             pageCount={session.document?.pageCount ?? pageCount}
+            payment={session.payment}
+            paymentStart={payment.state}
             quote={session.quote}
             onBack={() => setActiveStep(2)}
+            onStartPayment={handleStartPayment}
           />
         </FlowCard>
       </div>

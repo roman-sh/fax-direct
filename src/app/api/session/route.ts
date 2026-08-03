@@ -31,7 +31,7 @@ export async function POST(): Promise<Response> {
 
     const namespace = getCloudflareContext().env.FAX_SESSIONS
     const session = await namespace
-      .getByName(browserSession.sessionCode)
+      .getByName(browserSession.sessionId)
       .getSession()
 
     return sessionResponse(session)

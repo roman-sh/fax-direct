@@ -1,31 +1,53 @@
-import { ArrowRight, Lock } from "lucide-react"
+import { ArrowRight, CheckCircle2, Lock } from "lucide-react"
 
 import { CardHeading } from "@/components/fax-flow/flow-card"
+import type { PaymentStartState } from "@/components/fax-flow/use-payment"
 import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
-import type { FaxSessionQuote } from "@/shared/session/fax-session.types"
+import { Spinner } from "@/components/ui/spinner"
+import type {
+  FaxSessionPayment,
+  FaxSessionQuote,
+} from "@/shared/session/fax-session.types"
+import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
 
 type PaymentStepProps = {
   fileSummary: string
   recipientSummary: string
   pageCount: number | null
+  payment: FaxSessionPayment | null
+  paymentStart: PaymentStartState
   quote: FaxSessionQuote | null
   onBack: () => void
+  onStartPayment: () => void
 }
 
 export function PaymentStep({
   fileSummary,
   recipientSummary,
   pageCount,
+  payment,
+  paymentStart,
   quote,
   onBack,
+  onStartPayment,
 }: PaymentStepProps) {
+  const isStarting = paymentStart.status === "starting"
+  const isPending = payment?.status === PAYMENT_STATUS.PENDING
+  const isPaid = payment?.status === PAYMENT_STATUS.PAID
+
   return (
     <>
       <CardHeading
         step={3}
         title="אישור ותשלום"
-        description="עברו על הפרטים לפני פתיחת התשלום."
+        description={
+          isPaid
+            ? "התשלום התקבל."
+            : isPending
+              ? "ממתינים לאישור התשלום."
+              : "עברו על הפרטים לפני פתיחת התשלום."
+        }
       />
       <CardContent className="flex min-h-0 flex-1 flex-col p-7">
         <dl className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-4">
@@ -52,24 +74,51 @@ export function PaymentStep({
             type="button"
             variant="ghost"
             size="lg"
+            disabled={isStarting}
             onClick={onBack}
           >
             <ArrowRight data-icon="inline-start" />
             חזרה
           </Button>
           <div className="flex flex-col items-center gap-2">
-            <Button
-              type="button"
-              size="lg"
-              disabled={!quote}
-              className="min-w-40"
-            >
-              מעבר לתשלום
-              <Lock data-icon="inline-end" />
-            </Button>
-            <span className="text-[0.7rem] text-muted-foreground">
-              תצוגה חזותית בלבד
-            </span>
+            {isPaid ? (
+              <div className="flex min-w-40 items-center justify-center gap-2 text-base font-semibold text-success">
+                <CheckCircle2 className="size-5" />
+                התשלום התקבל
+              </div>
+            ) : (
+              <Button
+                type="button"
+                size="lg"
+                disabled={!quote || isStarting || isPending}
+                onClick={onStartPayment}
+                className="min-w-40"
+              >
+                {isStarting || isPending ? (
+                  <>
+                    <Spinner data-icon="inline-start" />
+                    ממתינים לאישור…
+                  </>
+                ) : (
+                  <>
+                    תשלום {formatFaxQuote(quote)}
+                    <Lock data-icon="inline-end" />
+                  </>
+                )}
+              </Button>
+            )}
+            {paymentStart.status === "error" ? (
+              <span
+                role="alert"
+                className="max-w-64 text-center text-[0.7rem] text-destructive"
+              >
+                {paymentStart.message}
+              </span>
+            ) : isPending ? (
+              <span className="text-[0.7rem] text-muted-foreground">
+                האישור יוצג לאחר רענון העמוד בשלב זה
+              </span>
+            ) : null}
           </div>
         </div>
       </CardContent>

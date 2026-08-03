@@ -42,11 +42,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const { sessionCode } = await getOrCreateFaxBrowserSession()
+    const { sessionId } = await getOrCreateFaxBrowserSession()
 
     const session = await saveFaxRecipient({
       input: body.recipient,
-      sessionCode,
+      sessionId,
     })
 
     return Response.json(session, {

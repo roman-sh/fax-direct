@@ -26,10 +26,10 @@ export class RecipientServiceError extends Error {
 /** Validates the recipient, calculates the quote, and persists both together. */
 export async function saveFaxRecipient({
   input,
-  sessionCode,
+  sessionId,
 }: {
   input: string
-  sessionCode: string
+  sessionId: string
 }): Promise<FaxSessionData> {
   const validation = validateIsraeliFaxNumber(input)
 
@@ -44,7 +44,7 @@ export async function saveFaxRecipient({
   }
   const quote = calculateFaxQuote(config)
   const saved = await getCloudflareContext()
-    .env.FAX_SESSIONS.getByName(sessionCode)
+    .env.FAX_SESSIONS.getByName(sessionId)
     .setRecipientAndQuote(recipient, quote)
 
   if (!saved) {

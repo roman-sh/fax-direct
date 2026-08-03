@@ -3,3 +3,6 @@ NEXTJS_ENV="development"
 
 # Generate with: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 SESSION_COOKIE_PASSWORD="replace-with-a-random-base64url-secret"
+
+# Created in the Posthook project dashboard.
+POSTHOOK_API_KEY="phk_replace-with-your-posthook-api-key"

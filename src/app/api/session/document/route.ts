@@ -89,12 +89,12 @@ export async function POST(request: Request): Promise<Response> {
     )
   }
 
-  let sessionCode: string
+  let sessionId: string
 
   try {
-    sessionCode = (
+    sessionId = (
       await getOrCreateFaxBrowserSession()
-    ).sessionCode
+    ).sessionId
   } catch (error) {
     console.error("Could not identify fax session:", error)
     return errorResponse(
@@ -105,7 +105,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const document: FaxSessionDocument = {
-    objectKey: sessionCode,
+    objectKey: sessionId,
     originalName: file.name,
     pageCount,
     sizeBytes: file.size,
@@ -114,7 +114,7 @@ export async function POST(request: Request): Promise<Response> {
   const { env } = getCloudflareContext()
 
   try {
-    await env.FAX_DOCUMENTS.put(sessionCode, file, {
+    await env.FAX_DOCUMENTS.put(sessionId, file, {
       httpMetadata: {
         contentType: "application/pdf",
       },
@@ -130,7 +130,7 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const session = await env.FAX_SESSIONS
-      .getByName(sessionCode)
+      .getByName(sessionId)
       .setDocument(document)
 
     return Response.json(session, {

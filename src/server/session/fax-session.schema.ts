@@ -6,6 +6,8 @@ import {
   text,
 } from "drizzle-orm/sqlite-core"
 
+import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
+
 /**
  * One Durable Object owns one database, so this table always contains exactly
  * one fax-session row. Drizzle infers query types and generates migrations from
@@ -25,6 +27,9 @@ export const faxSessionTable = sqliteTable(
     quoteCurrency: text("quote_currency", {
       enum: ["ILS"],
     }),
+    paymentStatus: text("payment_status", {
+      enum: [PAYMENT_STATUS.PENDING, PAYMENT_STATUS.PAID],
+    }),
     updatedAt: text("updated_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
@@ -34,6 +39,10 @@ export const faxSessionTable = sqliteTable(
     check(
       "fax_session_quote_currency",
       sql`${table.quoteCurrency} IS NULL OR ${table.quoteCurrency} = 'ILS'`
+    ),
+    check(
+      "fax_session_payment_status",
+      sql`${table.paymentStatus} IS NULL OR ${table.paymentStatus} IN ('pending', 'paid')`
     ),
   ]
 )
