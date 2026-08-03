@@ -8,6 +8,7 @@ import {
   faxSessionTable,
   type FaxSessionRow,
 } from "@/server/session/fax-session.schema"
+import type { FaxSessionEvent } from "@/shared/session/fax-session-event"
 import {
   type FaxSessionDocument,
   type FaxSessionData,
@@ -16,10 +17,12 @@ import {
   type FaxSessionRecipient,
 } from "@/shared/session/fax-session.types"
 import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
+import { isWebSocketUpgradeRequest } from "@/shared/websocket/is-websocket-upgrade-request"
 
 const LEGACY_SESSION_STORAGE_KEY = "session"
 const SESSION_ROW_ID = 1
 
+/** Creates a typed Drizzle client over this Durable Object's private SQLite. */
 function createFaxSessionDatabase(storage: DurableObjectStorage) {
   return drizzle(storage, {
     logger: false,
@@ -39,6 +42,11 @@ type FaxSessionDatabase = ReturnType<typeof createFaxSessionDatabase>
 export class FaxSession extends DurableObject<CloudflareEnv> {
   private readonly db: FaxSessionDatabase
 
+  /**
+   * Prepares the per-session database before Cloudflare delivers any request or
+   * RPC call: apply migrations, ensure its single row exists, and discard the
+   * obsolete pre-SQL test value.
+   */
   constructor(ctx: DurableObjectState, env: CloudflareEnv) {
     super(ctx, env)
     this.db = createFaxSessionDatabase(ctx.storage)
@@ -57,6 +65,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     })
   }
 
+  /** Reconstructs the nested API session from its single flattened SQL row. */
   async getSession(): Promise<FaxSessionData> {
     const row = this.db
       .select()
@@ -76,54 +85,92 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     }
   }
 
+  /** Accepts an authenticated browser connection routed by the custom Worker. */
+  async fetch(request: Request): Promise<Response> {
+    if (!isWebSocketUpgradeRequest(request)) {
+      return new Response("Expected WebSocket", { status: 426 })
+    }
+
+    // A WebSocket connection has two endpoints. Cloudflare creates both ends
+    // together: one will be returned to the browser, while the other remains
+    // attached to this Durable Object so it can send future session updates.
+    const pair = new WebSocketPair()
+    const [browserSocket, durableObjectSocket] = Object.values(pair)
+
+    // Accepting the server-side endpoint registers it with Cloudflare's
+    // hibernation API. The connection can stay open while this object sleeps.
+    this.ctx.acceptWebSocket(durableObjectSocket)
+
+    // Give a newly connected browser the current authoritative state instead
+    // of making it wait for the next database change.
+    this.sendSession(durableObjectSocket, await this.getSession())
+
+    // Status 101 completes the HTTP-to-WebSocket upgrade. Cloudflare transfers
+    // this endpoint to the browser; the Durable Object keeps its paired end.
+    return new Response(null, {
+      status: 101,
+      webSocket: browserSocket,
+    })
+  }
+
   /** Stores the verified R2 document and invalidates any previous quote. */
   async setDocument(
     document: FaxSessionDocument
   ): Promise<FaxSessionData> {
-    this.db
-      .update(faxSessionTable)
-      .set({
-        documentObjectKey: document.objectKey,
-        documentOriginalName: document.originalName,
-        documentPageCount: document.pageCount,
-        documentSizeBytes: document.sizeBytes,
-        quoteAmount: null,
-        quoteCurrency: null,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .where(eq(faxSessionTable.id, SESSION_ROW_ID))
-      .run()
+    return this.updateSession(() => {
+      this.db
+        .update(faxSessionTable)
+        .set({
+          documentObjectKey: document.objectKey,
+          documentOriginalName: document.originalName,
+          documentPageCount: document.pageCount,
+          documentSizeBytes: document.sizeBytes,
+          quoteAmount: null,
+          quoteCurrency: null,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(faxSessionTable.id, SESSION_ROW_ID))
+        .run()
 
-    return this.getSession()
+      return true
+    })
   }
 
-  /** Saves payment-ready recipient and quote data only after a document exists. */
+  /**
+   * Saves payment-ready recipient and quote data only after a document exists.
+   * Returns null when the session is not ready for this transition.
+   */
   async setRecipientAndQuote(
     recipient: FaxSessionRecipient,
     quote: FaxSessionQuote
   ): Promise<FaxSessionData | null> {
-    const updated = this.db
-      .update(faxSessionTable)
-      .set({
-        quoteAmount: quote.amount,
-        quoteCurrency: quote.currency,
-        recipientDisplayValue: recipient.displayValue,
-        recipientE164: recipient.e164,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .where(
-        and(
-          eq(faxSessionTable.id, SESSION_ROW_ID),
-          isNotNull(faxSessionTable.documentObjectKey)
+    return this.updateSession(() => {
+      const updated = this.db
+        .update(faxSessionTable)
+        .set({
+          quoteAmount: quote.amount,
+          quoteCurrency: quote.currency,
+          recipientDisplayValue: recipient.displayValue,
+          recipientE164: recipient.e164,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(
+          and(
+            eq(faxSessionTable.id, SESSION_ROW_ID),
+            isNotNull(faxSessionTable.documentObjectKey)
+          )
         )
-      )
-      .returning({ id: faxSessionTable.id })
-      .get()
+        .returning({ id: faxSessionTable.id })
+        .get()
 
-    return updated === undefined ? null : this.getSession()
+      return updated !== undefined
+    })
   }
 
-  /** Starts payment only when the session contains a complete server quote. */
+  /**
+   * Starts payment only when document, recipient, and quote are complete.
+   * Returns `started: false` for an existing payment and null when not ready.
+   */
   async startPayment(): Promise<{
     session: FaxSessionData
     started: boolean
@@ -137,54 +184,69 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
       }
     }
 
-    const updated = this.db
-      .update(faxSessionTable)
-      .set({
-        paymentStatus: PAYMENT_STATUS.PENDING,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .where(
-        and(
-          eq(faxSessionTable.id, SESSION_ROW_ID),
-          isNotNull(faxSessionTable.documentObjectKey),
-          isNotNull(faxSessionTable.recipientE164),
-          isNotNull(faxSessionTable.quoteAmount),
-          isNotNull(faxSessionTable.quoteCurrency)
+    const session = await this.updateSession(() => {
+      const updated = this.db
+        .update(faxSessionTable)
+        .set({
+          paymentStatus: PAYMENT_STATUS.PENDING,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(
+          and(
+            eq(faxSessionTable.id, SESSION_ROW_ID),
+            isNotNull(faxSessionTable.documentObjectKey),
+            isNotNull(faxSessionTable.recipientE164),
+            isNotNull(faxSessionTable.quoteAmount),
+            isNotNull(faxSessionTable.quoteCurrency)
+          )
         )
-      )
-      .returning({ id: faxSessionTable.id })
-      .get()
+        .returning({ id: faxSessionTable.id })
+        .get()
 
-    if (!updated) {
+      return updated !== undefined
+    })
+
+    if (!session) {
       return null
     }
 
     return {
-      session: await this.getSession(),
+      session,
       started: true,
     }
   }
 
-  /** Rolls back a pending state when scheduling its callback fails. */
+  /**
+   * Rolls back a pending payment when its external callback cannot be
+   * scheduled, leaving an already non-pending session unchanged.
+   */
   async cancelPendingPayment(): Promise<FaxSessionData> {
-    this.db
-      .update(faxSessionTable)
-      .set({
-        paymentStatus: null,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .where(
-        and(
-          eq(faxSessionTable.id, SESSION_ROW_ID),
-          eq(faxSessionTable.paymentStatus, PAYMENT_STATUS.PENDING)
+    const session = await this.updateSession(() => {
+      const updated = this.db
+        .update(faxSessionTable)
+        .set({
+          paymentStatus: null,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(
+          and(
+            eq(faxSessionTable.id, SESSION_ROW_ID),
+            eq(faxSessionTable.paymentStatus, PAYMENT_STATUS.PENDING)
+          )
         )
-      )
-      .run()
+        .returning({ id: faxSessionTable.id })
+        .get()
 
-    return this.getSession()
+      return updated !== undefined
+    })
+
+    return session ?? this.getSession()
   }
 
-  /** Confirms a pending payment; duplicate confirmations remain harmless. */
+  /**
+   * Confirms a pending payment. Already-paid callbacks are idempotent, while a
+   * callback for a session that is not pending returns null.
+   */
   async confirmPayment(): Promise<FaxSessionData | null> {
     const current = await this.getSession()
 
@@ -192,25 +254,78 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
       return current
     }
 
-    const updated = this.db
-      .update(faxSessionTable)
-      .set({
-        paymentStatus: PAYMENT_STATUS.PAID,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .where(
-        and(
-          eq(faxSessionTable.id, SESSION_ROW_ID),
-          eq(faxSessionTable.paymentStatus, PAYMENT_STATUS.PENDING)
+    return this.updateSession(() => {
+      const updated = this.db
+        .update(faxSessionTable)
+        .set({
+          paymentStatus: PAYMENT_STATUS.PAID,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(
+          and(
+            eq(faxSessionTable.id, SESSION_ROW_ID),
+            eq(faxSessionTable.paymentStatus, PAYMENT_STATUS.PENDING)
+          )
         )
-      )
-      .returning({ id: faxSessionTable.id })
-      .get()
+        .returning({ id: faxSessionTable.id })
+        .get()
 
-    return updated === undefined ? null : this.getSession()
+      return updated !== undefined
+    })
+  }
+
+  /**
+   * Runs a synchronous database change, then reads and broadcasts exactly one
+   * authoritative snapshot. A false result means no row changed and suppresses
+   * both the read and the WebSocket notification.
+   */
+  private async updateSession(
+    change: () => true
+  ): Promise<FaxSessionData>
+  private async updateSession(
+    change: () => boolean
+  ): Promise<FaxSessionData | null>
+  private async updateSession(
+    change: () => boolean
+  ): Promise<FaxSessionData | null> {
+    if (!change()) {
+      return null
+    }
+
+    const session = await this.getSession()
+    this.broadcastSession(session)
+
+    return session
+  }
+
+  /** Sends the same session snapshot to every browser viewing this object. */
+  private broadcastSession(session: FaxSessionData): void {
+    for (const webSocket of this.ctx.getWebSockets()) {
+      this.sendSession(webSocket, session)
+    }
+  }
+
+  /** Serializes one session event to an open browser WebSocket. */
+  private sendSession(
+    webSocket: WebSocket,
+    session: FaxSessionData
+  ): void {
+    if (webSocket.readyState !== WebSocket.OPEN) {
+      return
+    }
+
+    const event: FaxSessionEvent = {
+      type: "session",
+      session,
+    }
+
+    webSocket.send(JSON.stringify(event))
   }
 }
 
+// SQL row mappers
+
+/** Builds a complete document value, or null when any document column is absent. */
 function documentFromRow(row: FaxSessionRow): FaxSessionDocument | null {
   if (
     row.documentObjectKey === null ||
@@ -229,6 +344,7 @@ function documentFromRow(row: FaxSessionRow): FaxSessionDocument | null {
   }
 }
 
+/** Builds a complete recipient value, or null when either column is absent. */
 function recipientFromRow(row: FaxSessionRow): FaxSessionRecipient | null {
   if (
     row.recipientDisplayValue === null ||
@@ -243,6 +359,7 @@ function recipientFromRow(row: FaxSessionRow): FaxSessionRecipient | null {
   }
 }
 
+/** Builds a complete quote value, or null when amount or currency is absent. */
 function quoteFromRow(row: FaxSessionRow): FaxSessionQuote | null {
   if (row.quoteAmount === null || row.quoteCurrency === null) {
     return null
@@ -254,6 +371,7 @@ function quoteFromRow(row: FaxSessionRow): FaxSessionQuote | null {
   }
 }
 
+/** Converts the nullable SQL payment status into the nested session shape. */
 function paymentFromRow(row: FaxSessionRow): FaxSessionPayment | null {
   if (row.paymentStatus === null) {
     return null

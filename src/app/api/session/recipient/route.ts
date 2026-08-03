@@ -2,8 +2,8 @@
  * Validates and saves the recipient for the current fax session.
  *
  * A successful request also calculates and stores the server-owned quote. The
- * updated session is returned immediately so the payment card can render only
- * server-validated data. A WebSocket can replace these request responses later.
+ * updated session is returned immediately and also broadcast to any connected
+ * browser, so the payment card renders only server-validated data.
  */
 import { MarketConfigError } from "@/server/config/market-config.service"
 import {

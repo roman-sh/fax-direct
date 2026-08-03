@@ -5,18 +5,14 @@ import { getIronSession, type SessionOptions } from "iron-session"
 import { cookies } from "next/headers"
 
 import {
+  FAX_SESSION_COOKIE_NAME,
+  FAX_SESSION_TTL_SECONDS,
+  type FaxBrowserSession,
+} from "@/shared/session/fax-browser-session"
+import {
   createFaxSessionId,
   normalizeFaxSessionId,
 } from "@/shared/session/fax-session-id"
-
-const SESSION_COOKIE = "fax_direct_session"
-const SESSION_TTL_SECONDS = 24 * 60 * 60
-
-type FaxBrowserSession = {
-  sessionId?: string
-  /** Previous cookie payload key, retained only for seamless migration. */
-  sessionCode?: string
-}
 
 /**
  * Opens the authenticated, encrypted browser cookie that identifies one fax
@@ -35,7 +31,7 @@ export async function getOrCreateFaxBrowserSession(): Promise<{
   }
 
   const options = {
-    cookieName: SESSION_COOKIE,
+    cookieName: FAX_SESSION_COOKIE_NAME,
     cookieOptions: {
       httpOnly: true,
       path: "/",
@@ -43,7 +39,7 @@ export async function getOrCreateFaxBrowserSession(): Promise<{
       secure: true,
     },
     password,
-    ttl: SESSION_TTL_SECONDS,
+    ttl: FAX_SESSION_TTL_SECONDS,
   } satisfies SessionOptions
 
   const session = await getIronSession<FaxBrowserSession>(

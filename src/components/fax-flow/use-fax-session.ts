@@ -1,7 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import ReconnectingWebSocket from "partysocket/ws"
 
+import type { FaxSessionEvent } from "@/shared/session/fax-session-event"
 import type { FaxSessionData } from "@/shared/session/fax-session.types"
 
 export type FaxSessionLoadState =
@@ -17,6 +19,8 @@ type ErrorResponse = {
 export function useFaxSession() {
   const [state, setState] =
     useState<FaxSessionLoadState>({ status: "loading" })
+  const shouldConnect =
+    state.status === "ready" && state.session.document !== null
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setState({ status: "loading" })
@@ -63,6 +67,33 @@ export function useFaxSession() {
 
     return () => controller.abort()
   }, [load])
+
+  useEffect(() => {
+    if (!shouldConnect) {
+      return
+    }
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+    const webSocket = new ReconnectingWebSocket(
+      `${protocol}//${window.location.host}/api/session/events`
+    )
+
+    webSocket.addEventListener("message", (event) => {
+      try {
+        const message = JSON.parse(String(event.data)) as FaxSessionEvent
+
+        if (message.type === "session") {
+          setState({ status: "ready", session: message.session })
+        }
+      } catch {
+        // Ignore malformed messages and keep the last authoritative snapshot.
+      }
+    })
+
+    return () => {
+      webSocket.close(1000, "Session view closed")
+    }
+  }, [shouldConnect])
 
   const update = useCallback((session: FaxSessionData) => {
     setState({ status: "ready", session })
