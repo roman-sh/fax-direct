@@ -10,6 +10,7 @@ import {
 } from "@/components/fax-flow/flow-card"
 import { PaymentStep } from "@/components/fax-flow/payment-step"
 import { RecipientStep } from "@/components/fax-flow/recipient-step"
+import { useDocumentUpload } from "@/components/fax-flow/use-document-upload"
 import { useFaxSession } from "@/components/fax-flow/use-fax-session"
 import { usePdfInspection } from "@/components/fax-flow/use-pdf-inspection"
 
@@ -23,6 +24,7 @@ export function FaxSheet({
 }) {
   const [activeStep, setActiveStep] = useState<FaxStep>(1)
   const [recipient, setRecipient] = useState("")
+  const documentUpload = useDocumentUpload()
   const { file, inspection, selectFile } = usePdfInspection({
     maxFileBytes,
     maxPages,
@@ -34,6 +36,21 @@ export function FaxSheet({
   const recipientSummary = recipient.trim() || "מספר הנמען"
   const pageCount =
     inspection.status === "valid" ? inspection.pageCount : null
+
+  function handleFileSelection(nextFile: File | null) {
+    documentUpload.reset()
+    selectFile(nextFile)
+  }
+
+  async function handleDocumentContinue() {
+    if (!file || inspection.status !== "valid") {
+      return
+    }
+
+    if (await documentUpload.upload(file)) {
+      setActiveStep(2)
+    }
+  }
 
   return (
     <section
@@ -52,10 +69,11 @@ export function FaxSheet({
           <DocumentStep
             file={file}
             inspection={inspection}
+            upload={documentUpload.state}
             maxFileBytes={maxFileBytes}
             maxPages={maxPages}
-            onSelectFile={selectFile}
-            onContinue={() => setActiveStep(2)}
+            onSelectFile={handleFileSelection}
+            onContinue={handleDocumentContinue}
           />
         </FlowCard>
 

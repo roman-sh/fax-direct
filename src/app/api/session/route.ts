@@ -13,23 +13,19 @@
  */
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 
-import { getFaxBrowserSession } from "@/server/session/fax-browser-session"
+import { getOrCreateFaxBrowserSession } from "@/server/session/fax-browser-session"
 import {
   EMPTY_FAX_SESSION_DATA,
   type FaxSessionData,
 } from "@/shared/session/fax-session"
-import { createFaxSessionCode } from "@/shared/session/fax-session-code"
 
 export const runtime = "nodejs"
 
 export async function POST(): Promise<Response> {
   try {
-    const browserSession = await getFaxBrowserSession()
+    const browserSession = await getOrCreateFaxBrowserSession()
 
-    if (!browserSession.sessionCode) {
-      browserSession.sessionCode = createFaxSessionCode()
-      await browserSession.save()
-
+    if (browserSession.created) {
       return sessionResponse(EMPTY_FAX_SESSION_DATA)
     }
 

@@ -1,5 +1,12 @@
+export type FaxSessionDocument = {
+  objectKey: string
+  originalName: string
+  pageCount: number
+  sizeBytes: number
+}
+
 export type FaxSessionData = {
-  document: null
+  document: FaxSessionDocument | null
   quote: null
   recipient: null
 }

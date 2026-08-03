@@ -4,6 +4,8 @@ import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { getIronSession, type SessionOptions } from "iron-session"
 import { cookies } from "next/headers"
 
+import { createFaxSessionCode } from "@/shared/session/fax-session-code"
+
 const SESSION_COOKIE = "fax_direct_session"
 const SESSION_TTL_SECONDS = 24 * 60 * 60
 
@@ -16,7 +18,10 @@ type FaxBrowserSession = {
  * session. Iron Session returns an empty object for missing, expired, or
  * tampered seals, allowing the caller to initialize a new session safely.
  */
-export async function getFaxBrowserSession() {
+export async function getOrCreateFaxBrowserSession(): Promise<{
+  created: boolean
+  sessionCode: string
+}> {
   const password =
     getCloudflareContext().env.SESSION_COOKIE_PASSWORD
 
@@ -36,5 +41,23 @@ export async function getFaxBrowserSession() {
     ttl: SESSION_TTL_SECONDS,
   } satisfies SessionOptions
 
-  return getIronSession<FaxBrowserSession>(await cookies(), options)
+  const session = await getIronSession<FaxBrowserSession>(
+    await cookies(),
+    options
+  )
+
+  if (session.sessionCode) {
+    return {
+      created: false,
+      sessionCode: session.sessionCode,
+    }
+  }
+
+  session.sessionCode = createFaxSessionCode()
+  await session.save()
+
+  return {
+    created: true,
+    sessionCode: session.sessionCode,
+  }
 }

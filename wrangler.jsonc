@@ -35,6 +35,12 @@
       "id": "c698a6ad54a348548908eb1e24dc7d83",
     },
   ],
+  "r2_buckets": [
+    {
+      "binding": "FAX_DOCUMENTS",
+      "bucket_name": "fax-direct-documents",
+    },
+  ],
   "durable_objects": {
     "bindings": [
       {
