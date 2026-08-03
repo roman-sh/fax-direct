@@ -1,41 +1,44 @@
 /**
  * Creates or restores the browser's fax-session identity.
  *
- * The HttpOnly cookie contains a human-friendly Crockford Base32 code. That
- * same code is the Durable Object name, so Cloudflare can route every request
- * from this browser to the same FaxSession instance without a database lookup.
+ * An authenticated, encrypted Iron Session cookie contains a human-friendly
+ * Crockford Base32 code. That code is the Durable Object name, so Cloudflare
+ * can route every request from this browser to the same FaxSession instance
+ * without a database lookup.
  *
- * Calling getSession() reads the instance's current state. An empty session is
- * returned but not persisted yet; later workflow actions will write meaningful
- * document, recipient, and quote data. This is a POST because it may set the
- * cookie, and every response is marked no-store to prevent session caching.
+ * A new, expired, or tampered cookie receives a fresh code and an empty response
+ * without activating a Durable Object. Existing cookies call getSession() to
+ * restore state. This is a POST because it may set the cookie, and every
+ * response is marked no-store to prevent session caching.
  */
 import { getCloudflareContext } from "@opennextjs/cloudflare"
-import { cookies } from "next/headers"
 
-import type { FaxSessionData } from "@/shared/session/fax-session"
+import { getFaxBrowserSession } from "@/server/session/fax-browser-session"
 import {
-  createFaxSessionCode,
-  normalizeFaxSessionCode,
-} from "@/shared/session/fax-session-code"
+  EMPTY_FAX_SESSION_DATA,
+  type FaxSessionData,
+} from "@/shared/session/fax-session"
+import { createFaxSessionCode } from "@/shared/session/fax-session-code"
 
 export const runtime = "nodejs"
 
-const SESSION_COOKIE = "fax_direct_session"
-const SESSION_COOKIE_MAX_AGE_SECONDS = 24 * 60 * 60
-
 export async function POST(): Promise<Response> {
-  const cookieStore = await cookies()
-  const existingSessionCode = cookieStore.get(SESSION_COOKIE)?.value
-  const sessionCode =
-    (existingSessionCode && normalizeFaxSessionCode(existingSessionCode)) ??
-    createFaxSessionCode()
-
-  let session: FaxSessionData
-
   try {
+    const browserSession = await getFaxBrowserSession()
+
+    if (!browserSession.sessionCode) {
+      browserSession.sessionCode = createFaxSessionCode()
+      await browserSession.save()
+
+      return sessionResponse(EMPTY_FAX_SESSION_DATA)
+    }
+
     const namespace = getCloudflareContext().env.FAX_SESSIONS
-    session = await namespace.getByName(sessionCode).getSession()
+    const session = await namespace
+      .getByName(browserSession.sessionCode)
+      .getSession()
+
+    return sessionResponse(session)
   } catch (error) {
     console.error("Could not initialize fax session:", error)
 
@@ -52,17 +55,9 @@ export async function POST(): Promise<Response> {
       }
     )
   }
+}
 
-  if (existingSessionCode !== sessionCode) {
-    cookieStore.set(SESSION_COOKIE, sessionCode, {
-      httpOnly: true,
-      maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
-      path: "/",
-      sameSite: "lax",
-      secure: true,
-    })
-  }
-
+function sessionResponse(session: FaxSessionData): Response {
   return Response.json(session, {
     headers: {
       "Cache-Control": "no-store",

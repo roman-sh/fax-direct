@@ -1,0 +1,5 @@
+# Load .env.development* files when running `wrangler dev`
+NEXTJS_ENV="development"
+
+# Generate with: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
+SESSION_COOKIE_PASSWORD="replace-with-a-random-base64url-secret"
