@@ -55,6 +55,13 @@
       "storage": "sqlite",
     },
   },
+  "rules": [
+    {
+      "type": "Text",
+      "globs": ["**/*.sql"],
+      "fallthrough": true,
+    },
+  ],
   "observability": {
     "enabled": true,
   },
