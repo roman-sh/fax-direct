@@ -4,7 +4,9 @@ import {
   EMPTY_FAX_SESSION_DATA,
   type FaxSessionDocument,
   type FaxSessionData,
-} from "@/shared/session/fax-session"
+  type FaxSessionQuote,
+  type FaxSessionRecipient,
+} from "@/shared/session/fax-session.types"
 
 const SESSION_STORAGE_KEY = "session"
 
@@ -31,5 +33,25 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     await this.ctx.storage.put(SESSION_STORAGE_KEY, updated)
 
     return updated
+  }
+
+  /** Saves payment-ready recipient and quote data only after a document exists. */
+  async setRecipientAndQuote(
+    recipient: FaxSessionRecipient,
+    quote: FaxSessionQuote
+  ): Promise<boolean> {
+    const current = await this.getSession()
+
+    if (!current.document) {
+      return false
+    }
+
+    await this.ctx.storage.put(SESSION_STORAGE_KEY, {
+      ...current,
+      quote,
+      recipient,
+    } satisfies FaxSessionData)
+
+    return true
   }
 }

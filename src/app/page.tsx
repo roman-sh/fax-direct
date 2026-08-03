@@ -1,7 +1,7 @@
 import { AppBar } from "@/components/app-bar"
 import { FactsBar } from "@/components/facts-bar"
 import { FaxSheet } from "@/components/fax-sheet"
-import { getMarketConfig } from "@/server/config/get-market-config"
+import { getMarketConfig } from "@/server/config/market-config.service"
 
 export const dynamic = "force-dynamic"
 

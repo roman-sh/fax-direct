@@ -13,6 +13,7 @@ import { RecipientStep } from "@/components/fax-flow/recipient-step"
 import { useDocumentUpload } from "@/components/fax-flow/use-document-upload"
 import { useFaxSession } from "@/components/fax-flow/use-fax-session"
 import { usePdfInspection } from "@/components/fax-flow/use-pdf-inspection"
+import { useRecipientSave } from "@/components/fax-flow/use-recipient-save"
 
 /** Coordinates shared state and navigation between the three fax-flow cards. */
 export function FaxSheet({
@@ -25,6 +26,7 @@ export function FaxSheet({
   const [activeStep, setActiveStep] = useState<FaxStep>(1)
   const [recipient, setRecipient] = useState("")
   const documentUpload = useDocumentUpload()
+  const recipientSave = useRecipientSave()
   const { file, inspection, selectFile } = usePdfInspection({
     maxFileBytes,
     maxPages,
@@ -49,6 +51,17 @@ export function FaxSheet({
 
     if (await documentUpload.upload(file)) {
       setActiveStep(2)
+    }
+  }
+
+  function handleRecipientChange(nextRecipient: string) {
+    recipientSave.reset()
+    setRecipient(nextRecipient)
+  }
+
+  async function handleRecipientContinue() {
+    if (await recipientSave.save(recipient)) {
+      setActiveStep(3)
     }
   }
 
@@ -87,9 +100,10 @@ export function FaxSheet({
         >
           <RecipientStep
             recipient={recipient}
-            onRecipientChange={setRecipient}
+            save={recipientSave.state}
+            onRecipientChange={handleRecipientChange}
             onBack={() => setActiveStep(1)}
-            onContinue={() => setActiveStep(3)}
+            onContinue={handleRecipientContinue}
           />
         </FlowCard>
 

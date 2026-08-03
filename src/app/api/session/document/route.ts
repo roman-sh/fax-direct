@@ -11,14 +11,14 @@ import { getCloudflareContext } from "@opennextjs/cloudflare"
 import {
   getMarketConfig,
   MarketConfigError,
-} from "@/server/config/get-market-config"
-import { getOrCreateFaxBrowserSession } from "@/server/session/fax-browser-session"
+} from "@/server/config/market-config.service"
+import { getOrCreateFaxBrowserSession } from "@/server/session/fax-browser-session.service"
 import {
   inspectPdfFile,
   PdfInspectionError,
   type PdfInspectionErrorCode,
 } from "@/shared/pdf/inspect-pdf"
-import type { FaxSessionDocument } from "@/shared/session/fax-session"
+import type { FaxSessionDocument } from "@/shared/session/fax-session.types"
 
 export const runtime = "nodejs"
 

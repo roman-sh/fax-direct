@@ -13,11 +13,11 @@
  */
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 
-import { getOrCreateFaxBrowserSession } from "@/server/session/fax-browser-session"
+import { getOrCreateFaxBrowserSession } from "@/server/session/fax-browser-session.service"
 import {
   EMPTY_FAX_SESSION_DATA,
   type FaxSessionData,
-} from "@/shared/session/fax-session"
+} from "@/shared/session/fax-session.types"
 
 export const runtime = "nodejs"
 

@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ArrowLeft, ArrowRight, Phone } from "lucide-react"
 
 import { CardHeading } from "@/components/fax-flow/flow-card"
+import type { RecipientSaveState } from "@/components/fax-flow/use-recipient-save"
 import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,6 +16,7 @@ import {
 
 type RecipientStepProps = {
   recipient: string
+  save: RecipientSaveState
   onRecipientChange: (recipient: string) => void
   onBack: () => void
   onContinue: () => void
@@ -22,16 +24,20 @@ type RecipientStepProps = {
 
 export function RecipientStep({
   recipient,
+  save,
   onRecipientChange,
   onBack,
   onContinue,
 }: RecipientStepProps) {
   const [touched, setTouched] = useState(false)
   const validation = validateIsraeliFaxNumber(recipient)
-  const error =
+  const validationError =
     touched && !validation.ok
       ? getRecipientErrorMessage(validation.code)
       : null
+  const error =
+    save.status === "error" ? save.message : validationError
+  const isSaving = save.status === "saving"
 
   return (
     <>
@@ -59,6 +65,7 @@ export function RecipientStep({
               type="tel"
               inputMode="tel"
               autoComplete="tel"
+              disabled={isSaving}
               dir="ltr"
               placeholder="03-1234567"
               aria-describedby="recipient-fax-help"
@@ -88,6 +95,7 @@ export function RecipientStep({
             type="button"
             variant="ghost"
             size="lg"
+            disabled={isSaving}
             onClick={onBack}
           >
             <ArrowRight data-icon="inline-start" />
@@ -96,12 +104,18 @@ export function RecipientStep({
           <Button
             type="button"
             size="lg"
-            disabled={!validation.ok}
+            disabled={!validation.ok || isSaving}
             onClick={onContinue}
             className="min-w-32"
           >
-            המשך
-            <ArrowLeft data-icon="inline-end" />
+            {isSaving ? (
+              "שומרים…"
+            ) : (
+              <>
+                המשך
+                <ArrowLeft data-icon="inline-end" />
+              </>
+            )}
           </Button>
         </div>
       </CardContent>

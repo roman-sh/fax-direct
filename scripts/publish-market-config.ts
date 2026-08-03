@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { marketConfigSchema } from "../src/server/config/market-config-schema"
+import { marketConfigSchema } from "../src/server/config/market-config.schema"
 
 async function main() {
   const args = process.argv.slice(2)
