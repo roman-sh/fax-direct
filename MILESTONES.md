@@ -1,33 +1,35 @@
 # Fax Direct Milestones
 
-This file tracks what is implemented, what is currently being built, and what comes next.
+This file tracks what is implemented, what is currently being built, and what
+comes next.
 
 ## Current state
 
 Implemented:
 
-- Next.js application scaffold
-- OpenNext adapter for Cloudflare Workers
-- Local Next.js development and Cloudflare preview commands
-- Cloudflare Worker, assets, image, and self-reference bindings
-- shadcn/ui foundation with RTL-compatible components
-- Validated Israel market configuration backed by Cloudflare Workers KV
-- Backend PDF inspection with file validation, page counting, and KV-backed pricing
-- Frontend PDF selection, drag-and-drop, inspection states, and verified results
-- Hebrew right-to-left page shell: single-screen fax sheet with document, recipient,
-  and payment zones
-- Product architecture and lifecycle documented in `README.md`
+- Next.js application deployed to Cloudflare Workers through OpenNext
+- shadcn/ui foundation and Hebrew RTL stacked-card fax flow
+- Client-side PDF inspection for immediate feedback
+- Authoritative backend PDF validation and page counting
+- Israel market limits and pricing stored in Cloudflare Workers KV
+- Client-side and backend Israeli recipient validation
+- Signed HttpOnly browser identity with a human-readable recovery code
+- Temporary PDF storage in a private R2 bucket with 24-hour expiration
+- One SQLite-backed Durable Object per fax session
+- Drizzle-owned SQL schema, typed queries, and embedded per-object migrations
+- Server-owned ₪9.90 ILS quote after document and recipient validation
+- Production verification of R2, Durable Object SQL, and session restoration API
 
 Not yet implemented:
 
-- Fax-flow interactivity and state handling behind the interface
-- Recipient validation
-- R2 document storage
-- Payment integration
+- Hydration of the browser interface from the restored backend session
+- WebSocket session synchronization and live status updates
+- Simulated payment and fax transmission
+- Start-another-fax behavior
 - Fax provider integration
-- Workflow, Durable Object, and live status updates
+- Payment provider integration
 
-## Milestone 1: Local fax flow
+## Milestone 1: Prepare a persistent fax order
 
 Status: **In progress**
 
@@ -37,100 +39,103 @@ Status: **In progress**
 - The interface is Hebrew and right-to-left.
 - Only PDF files are accepted.
 - A fax can contain between 1 and 10 pages.
-- PDF page counting is performed only on the backend.
+- The browser performs preliminary PDF inspection for responsive feedback.
+- The backend always repeats PDF validation and page counting authoritatively.
 - A PDF with more than 10 pages is rejected with a clear message.
-- Every accepted fax costs a flat **₪9.90**.
+- Every accepted Israeli fax currently costs a flat **₪9.90**.
 - PDF editing, reordering, rotation, and page removal are postponed.
 
 ### Scope
 
-- Replace the starter page with the Fax Direct interface.
-- Allow the customer to select and upload one PDF.
-- Add a backend route that parses the uploaded PDF.
-- Count the PDF's pages on the backend and return the verified count.
-- Reject corrupt, encrypted, empty, or over-10-page PDFs on the backend.
+- Allow the customer to select and inspect one PDF.
+- Validate, count, and temporarily store the PDF on the backend.
 - Accept and validate an Israeli recipient fax number.
-- Display the verified page count and fixed ₪9.90 price.
-- Simulate payment and fax transmission locally.
-- Display submitting, transmitting, delivered, and failed states.
-- Allow the customer to start a new fax.
-- Support mobile and desktop layouts.
+- Calculate and persist the server-owned quote.
+- Restore the most advanced valid step after a browser refresh.
+- Keep the existing document in R2 without downloading it back into the browser.
+- Allow a restored document or recipient to be replaced through the normal flow.
+
+### Restoration rules
+
+- Empty session: open the document card.
+- Valid document only: open the recipient card.
+- Valid document, recipient, and quote: open the payment card.
+- The browser file input is never restored; stored document metadata represents
+  the previously uploaded PDF.
+- Inconsistent server state falls back to the earliest valid step.
 
 ### Acceptance criteria
 
-- The complete simulated flow works on one page.
-- The interface is Hebrew and uses RTL layout.
-- A valid PDF containing 1–10 pages is accepted by the backend.
-- The browser does not determine the authoritative page count.
-- Corrupt, encrypted, empty, and over-10-page PDFs are rejected by the backend.
-- The displayed price is always ₪9.90.
-- Invalid recipient numbers produce a clear error.
-- Refreshing or starting over returns to a safe initial state.
-- `npm run build` succeeds.
-- The OpenNext Cloudflare build succeeds.
+- A valid PDF containing 1–10 pages is accepted by the backend and stored in R2.
+- Corrupt, encrypted, empty, and over-10-page PDFs are rejected.
+- Invalid or non-Israeli recipient numbers produce a clear error.
+- The backend stores the display phone number and normalized E.164 value.
+- The persisted quote is always ₪9.90 ILS for the current Israel market.
+- Refreshing restores document, recipient, quote, and the most advanced valid card.
+- The API continues to return nested session objects independent of SQL layout.
+- `npm run build` and the OpenNext Cloudflare build succeed.
 
 ### Checklist
 
 - [x] Initialize shadcn/ui with RTL support.
-- [x] Add Card, Field, Input, Button, Alert, Spinner, and Badge.
-- [ ] Define fax-flow states and events.
-- [x] Add Israel market configuration.
-- [x] Build the Hebrew RTL page shell.
-- [x] Add PDF selection and upload.
-- [x] Add the backend PDF inspection route.
-- [x] Add backend PDF parsing and validation.
-- [x] Add backend-only PDF page counting.
-- [x] Display the verified page count.
-- [ ] Add Israeli recipient validation.
-- [x] Add fixed-price display.
-- [ ] Add simulated payment.
-- [ ] Add simulated transmission states.
-- [ ] Add restart behavior.
-- [ ] Verify responsive layout.
-- [x] Verify Next.js and OpenNext builds.
-- [x] Profile deployed Worker CPU time with representative PDFs.
+- [x] Build the stacked three-card Hebrew interface.
+- [x] Add client-side PDF selection and preliminary inspection.
+- [x] Add authoritative backend PDF parsing, validation, and page counting.
+- [x] Add Israel market configuration in Workers KV.
+- [x] Add client-side and backend Israeli recipient validation.
+- [x] Create signed browser session identities.
+- [x] Store accepted PDFs temporarily in R2.
+- [x] Persist session state in a SQLite-backed Durable Object.
+- [x] Manage the Durable Object schema and migrations with Drizzle.
+- [x] Calculate and persist the server-owned quote.
+- [x] Verify the backend flow in production and Data Studio.
+- [ ] Hydrate the browser flow from `/api/session`.
+- [ ] Restore the most advanced valid card after refresh.
+- [ ] Verify restored and replaced values on desktop and mobile.
 
-## Later milestones
+## Milestone 2: Live simulated fax lifecycle
 
-### Milestone 2: Cloudflare session and storage
+- Connect the browser to its Durable Object over WebSocket.
+- Send the current session snapshot when the socket connects.
+- Broadcast authoritative session updates to the browser.
+- Add awaiting-payment, paid, sending, delivered, and failed states.
+- Simulate payment confirmation on the backend.
+- Simulate fax transmission and delivery or failure.
+- Turn the payment card into the live status card after payment.
+- Allow the customer to start another fax with a fresh session.
 
-- Create server-owned fax sessions.
-- Store PDFs temporarily in R2.
-- Associate stored PDFs with their verified page count and price.
-
-### Milestone 3: Durable execution
-
-- Add one Workflow per fax attempt.
-- Add one Durable Object per fax attempt.
-- Stream live status updates to the browser.
-- Use fake payment and fax providers end to end.
-
-### Milestone 4: Fax provider
+## Milestone 3: Fax provider
 
 - Integrate Phaxio.
+- Submit the stored R2 document to the provider.
 - Verify webhooks and handle duplicate events.
-- Reconcile ambiguous submissions.
-- Delete provider document copies after completion.
+- Reconcile ambiguous submissions and allow safe retries.
+- Remove provider document copies after completion.
 
-### Milestone 5: Payments and launch readiness
+## Milestone 4: Payments and launch readiness
 
-- Integrate the selected payment provider.
-- Verify payment webhooks and handle refunds.
-- Add production secrets, resource bindings, retention rules, and monitoring.
+- Select and integrate the payment provider.
+- Present the final server-owned amount through the provider flow.
+- Verify payment webhooks and handle duplicate events and refunds.
+- Add abuse protection, monitoring, and operational alerts.
+- Connect the production domain to the Worker.
 - Complete legal, privacy, and operational launch checks.
 
 ## Decision log
 
-| Date       | Decision                                                     |
-| ---------- | ------------------------------------------------------------ |
-| 2026-07-29 | Milestone 1 supports PDF page counting without PDF editing.  |
+| Date       | Decision |
+| ---------- | -------- |
+| 2026-07-29 | The initial market is Israel and the interface is Hebrew RTL. |
 | 2026-07-29 | The initial price is a flat ₪9.90 for a fax of up to 10 pages. |
-| 2026-07-29 | PDF validation and page counting run only on the backend.     |
-| 2026-07-29 | Use shadcn/ui base-nova components with RTL generation.       |
-| 2026-07-29 | Use Noto Sans Hebrew; Latin falls back to the system UI sans.  |
-| 2026-07-29 | The whole flow fits one screen; no marketing page below it.   |
-| 2026-07-29 | The page shell is presentational until the flow is wired.     |
+| 2026-07-29 | Use shadcn/ui base-nova components with RTL generation. |
+| 2026-07-29 | Use Noto Sans Hebrew; Latin falls back to the system UI sans. |
+| 2026-07-29 | The whole flow fits one screen; no dashboard or marketing page is required. |
 | 2026-07-29 | Store Israel limits and pricing in the `market:IL` Workers KV entry. |
-| 2026-07-29 | Return verified page count and backend-owned price from PDF inspection. |
-| 2026-07-29 | Use Workers Paid after real PDF inspection exceeded the Free CPU limit. |
+| 2026-07-29 | Use Workers Paid after representative PDF inspection exceeded the Free CPU limit. |
 | 2026-07-29 | Use `unpdf` so permission-restricted PDFs work while opening-password PDFs are rejected. |
+| 2026-08-03 | Perform preliminary PDF inspection in the browser and repeat it authoritatively on the backend. |
+| 2026-08-03 | Use a signed Crockford Base32 code as the browser identity, Durable Object name, R2 key, and future recovery code. |
+| 2026-08-03 | Keep accepted PDFs in private R2 storage and expire all objects after 24 hours. |
+| 2026-08-03 | Store one flattened `fax_session` SQL row inside each session Durable Object. |
+| 2026-08-03 | Use Drizzle as the single TypeScript source for the SQL schema, typed queries, and per-object migrations. |
+| 2026-08-03 | Calculate the quote after both document and recipient are validated so future destination-based pricing remains possible. |
