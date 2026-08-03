@@ -3,11 +3,13 @@ import { ArrowRight, Lock } from "lucide-react"
 import { CardHeading } from "@/components/fax-flow/flow-card"
 import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
+import type { FaxSessionQuote } from "@/shared/session/fax-session.types"
 
 type PaymentStepProps = {
   fileSummary: string
   recipientSummary: string
   pageCount: number | null
+  quote: FaxSessionQuote | null
   onBack: () => void
 }
 
@@ -15,6 +17,7 @@ export function PaymentStep({
   fileSummary,
   recipientSummary,
   pageCount,
+  quote,
   onBack,
 }: PaymentStepProps) {
   return (
@@ -39,7 +42,7 @@ export function PaymentStep({
               className="flex-1 border-b border-dotted border-border"
             />
             <dd dir="ltr" className="text-2xl font-bold tabular-nums">
-              ₪9.90
+              {formatFaxQuote(quote)}
             </dd>
           </div>
         </dl>
@@ -55,7 +58,12 @@ export function PaymentStep({
             חזרה
           </Button>
           <div className="flex flex-col items-center gap-2">
-            <Button type="button" size="lg" className="min-w-40">
+            <Button
+              type="button"
+              size="lg"
+              disabled={!quote}
+              className="min-w-40"
+            >
               מעבר לתשלום
               <Lock data-icon="inline-end" />
             </Button>
@@ -67,6 +75,14 @@ export function PaymentStep({
       </CardContent>
     </>
   )
+}
+
+export function formatFaxQuote(quote: FaxSessionQuote | null): string {
+  if (!quote) {
+    return "—"
+  }
+
+  return quote.currency === "ILS" ? `₪${quote.amount}` : quote.amount
 }
 
 function SummaryRow({

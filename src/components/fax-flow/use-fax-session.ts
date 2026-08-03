@@ -1,24 +1,76 @@
 "use client"
 
-import { useEffect } from "react"
+import { useCallback, useEffect, useState } from "react"
 
-/**
- * Ensures the browser receives or restores its HttpOnly fax-session cookie.
- * The endpoint is safe to call again when Strict Mode re-runs this Effect in
- * development.
- */
+import type { FaxSessionData } from "@/shared/session/fax-session.types"
+
+export type FaxSessionLoadState =
+  | { status: "loading" }
+  | { status: "ready"; session: FaxSessionData }
+  | { status: "error"; message: string }
+
+type ErrorResponse = {
+  message?: string
+}
+
+/** Restores the server-owned fax session associated with the signed cookie. */
 export function useFaxSession() {
-  useEffect(() => {
-    void fetch("/api/session", {
-      method: "POST",
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Session initialization failed: ${response.status}`)
-        }
+  const [state, setState] =
+    useState<FaxSessionLoadState>({ status: "loading" })
+
+  const load = useCallback(async (signal?: AbortSignal) => {
+    setState({ status: "loading" })
+
+    try {
+      const response = await fetch("/api/session", {
+        method: "POST",
+        signal,
       })
-      .catch((error: unknown) => {
-        console.error("Could not initialize fax session:", error)
+      const result = (await response.json()) as
+        | ErrorResponse
+        | FaxSessionData
+
+      if (!response.ok) {
+        throw new Error(
+          "message" in result && result.message
+            ? result.message
+            : "לא הצלחנו לשחזר את השליחה. נסו שוב."
+        )
+      }
+
+      setState({
+        status: "ready",
+        session: result as FaxSessionData,
       })
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return
+      }
+
+      setState({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "לא הצלחנו לשחזר את השליחה. נסו שוב.",
+      })
+    }
   }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void load(controller.signal)
+
+    return () => controller.abort()
+  }, [load])
+
+  const update = useCallback((session: FaxSessionData) => {
+    setState({ status: "ready", session })
+  }, [])
+
+  return {
+    load,
+    state,
+    update,
+  }
 }

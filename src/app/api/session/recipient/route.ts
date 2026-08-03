@@ -2,8 +2,8 @@
  * Validates and saves the recipient for the current fax session.
  *
  * A successful request also calculates and stores the server-owned quote. The
- * endpoint returns no data because live session presentation will later come
- * from the Durable Object WebSocket rather than this request response.
+ * updated session is returned immediately so the payment card can render only
+ * server-validated data. A WebSocket can replace these request responses later.
  */
 import { MarketConfigError } from "@/server/config/market-config.service"
 import {
@@ -44,13 +44,12 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const { sessionCode } = await getOrCreateFaxBrowserSession()
 
-    await saveFaxRecipient({
+    const session = await saveFaxRecipient({
       input: body.recipient,
       sessionCode,
     })
 
-    return new Response(null, {
-      status: 204,
+    return Response.json(session, {
       headers: {
         "Cache-Control": "no-store",
       },

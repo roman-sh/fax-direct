@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 
+import type { FaxSessionData } from "@/shared/session/fax-session.types"
+
 export type RecipientSaveState =
   | { status: "idle" }
   | { status: "saving" }
@@ -12,12 +14,14 @@ type ErrorResponse = {
   message?: string
 }
 
-/** Saves the recipient and quote before the flow enters the payment card. */
+/** Saves the recipient and returns the authoritative payment-ready session. */
 export function useRecipientSave() {
   const [state, setState] =
     useState<RecipientSaveState>({ status: "idle" })
 
-  async function save(recipient: string): Promise<boolean> {
+  async function save(
+    recipient: string
+  ): Promise<FaxSessionData | null> {
     setState({ status: "saving" })
 
     try {
@@ -28,17 +32,20 @@ export function useRecipientSave() {
         },
         body: JSON.stringify({ recipient }),
       })
+      const result = (await response.json()) as
+        | ErrorResponse
+        | FaxSessionData
 
       if (!response.ok) {
-        const result = (await response.json()) as ErrorResponse
-
         throw new Error(
-          result.message ?? "לא הצלחנו לשמור את מספר הפקס. נסו שוב."
+          "message" in result && result.message
+            ? result.message
+            : "לא הצלחנו לשמור את מספר הפקס. נסו שוב."
         )
       }
 
       setState({ status: "ready" })
-      return true
+      return result as FaxSessionData
     } catch (error) {
       setState({
         status: "error",
@@ -47,7 +54,7 @@ export function useRecipientSave() {
             ? error.message
             : "לא הצלחנו לשמור את מספר הפקס. נסו שוב.",
       })
-      return false
+      return null
     }
   }
 

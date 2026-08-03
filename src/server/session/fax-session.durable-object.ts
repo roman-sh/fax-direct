@@ -98,7 +98,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   async setRecipientAndQuote(
     recipient: FaxSessionRecipient,
     quote: FaxSessionQuote
-  ): Promise<boolean> {
+  ): Promise<FaxSessionData | null> {
     const updated = this.db
       .update(faxSessionTable)
       .set({
@@ -117,7 +117,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
       .returning({ id: faxSessionTable.id })
       .get()
 
-    return updated !== undefined
+    return updated === undefined ? null : this.getSession()
   }
 }
 

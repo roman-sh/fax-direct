@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
+import type { FaxSessionDocument } from "@/shared/session/fax-session.types"
 
 type DocumentStepProps = {
   file: File | null
+  storedDocument: FaxSessionDocument | null
   inspection: PdfInspectionState
   upload: DocumentUploadState
   maxFileBytes: number
@@ -21,6 +23,7 @@ type DocumentStepProps = {
 
 export function DocumentStep({
   file,
+  storedDocument,
   inspection,
   upload,
   maxFileBytes,
@@ -28,11 +31,17 @@ export function DocumentStep({
   onSelectFile,
   onContinue,
 }: DocumentStepProps) {
-  const isValid = inspection.status === "valid"
+  const hasStoredDocument = file === null && storedDocument !== null
+  const isValid = inspection.status === "valid" || hasStoredDocument
   const isUploading = upload.status === "uploading"
   const hasError =
     inspection.status === "invalid" || upload.status === "error"
-  const statusMessage = getDocumentStatusMessage(inspection, upload)
+  const displayedName = file?.name ?? storedDocument?.originalName
+  const statusMessage = getDocumentStatusMessage(
+    inspection,
+    upload,
+    hasStoredDocument ? storedDocument : null
+  )
 
   function handleFileDrop(event: DragEvent<HTMLLabelElement>) {
     event.preventDefault()
@@ -80,7 +89,7 @@ export function DocumentStep({
               <Spinner className="size-7" />
             ) : hasError ? (
               <CircleAlert className="size-7" />
-            ) : file ? (
+            ) : displayedName ? (
               <FileText className="size-7" />
             ) : (
               <Upload className="size-7" />
@@ -88,11 +97,11 @@ export function DocumentStep({
           </span>
           <span className="flex max-w-full flex-col gap-1">
             <span
-              dir={file ? "ltr" : undefined}
-              title={file?.name}
+              dir={displayedName ? "ltr" : undefined}
+              title={displayedName}
               className="max-w-xl truncate text-base font-semibold"
             >
-              {file?.name ?? "גררו לכאן קובץ PDF"}
+              {displayedName ?? "גררו לכאן קובץ PDF"}
             </span>
             <span
               aria-live="polite"
@@ -136,7 +145,8 @@ export function DocumentStep({
 
 function getDocumentStatusMessage(
   inspection: PdfInspectionState,
-  upload: DocumentUploadState
+  upload: DocumentUploadState,
+  storedDocument: FaxSessionDocument | null
 ): string {
   if (upload.status === "uploading") {
     return "מעלים ושומרים את המסמך…"
@@ -156,6 +166,10 @@ function getDocumentStatusMessage(
 
   if (inspection.status === "invalid") {
     return inspection.message
+  }
+
+  if (storedDocument) {
+    return `${formatPageCount(storedDocument.pageCount)} · המסמך השמור מוכן`
   }
 
   return "או לחצו כדי לבחור קובץ מהמחשב"

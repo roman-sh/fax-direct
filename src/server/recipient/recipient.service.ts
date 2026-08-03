@@ -5,7 +5,10 @@ import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { getMarketConfig } from "@/server/config/market-config.service"
 import { calculateFaxQuote } from "@/server/quote/quote.service"
 import { validateIsraeliFaxNumber } from "@/shared/phone/validate-israeli-fax-number"
-import type { FaxSessionRecipient } from "@/shared/session/fax-session.types"
+import type {
+  FaxSessionData,
+  FaxSessionRecipient,
+} from "@/shared/session/fax-session.types"
 
 export type RecipientServiceErrorCode =
   | "DOCUMENT_REQUIRED"
@@ -27,7 +30,7 @@ export async function saveFaxRecipient({
 }: {
   input: string
   sessionCode: string
-}): Promise<void> {
+}): Promise<FaxSessionData> {
   const validation = validateIsraeliFaxNumber(input)
 
   if (!validation.ok) {
@@ -47,4 +50,6 @@ export async function saveFaxRecipient({
   if (!saved) {
     throw new RecipientServiceError("DOCUMENT_REQUIRED")
   }
+
+  return saved
 }
