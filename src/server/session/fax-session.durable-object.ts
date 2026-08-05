@@ -3,7 +3,7 @@ import { and, eq, isNotNull, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/durable-sqlite"
 import { migrate } from "drizzle-orm/durable-sqlite/migrator"
 
-import migrations from "../../../drizzle/migrations"
+import migrations from "../../../drizzle/fax-session/migrations"
 import {
   faxSessionTable,
   type FaxSessionRow,

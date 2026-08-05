@@ -41,6 +41,14 @@
       "bucket_name": "fax-direct-documents",
     },
   ],
+  "d1_databases": [
+    {
+      "binding": "APP_DATABASE",
+      "database_name": "fax-direct",
+      "database_id": "ec189b33-c584-4acf-9c68-dcc5c80b305e",
+      "migrations_dir": "drizzle/d1",
+    },
+  ],
   "durable_objects": {
     "bindings": [
       {
