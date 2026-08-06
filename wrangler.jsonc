@@ -55,10 +55,18 @@
         "name": "FAX_SESSIONS",
         "class_name": "FaxSession",
       },
+      {
+        "name": "FAX_POLLING_COORDINATOR",
+        "class_name": "FaxPollingCoordinator",
+      },
     ],
   },
   "exports": {
     "FaxSession": {
+      "type": "durable-object",
+      "storage": "sqlite",
+    },
+    "FaxPollingCoordinator": {
       "type": "durable-object",
       "storage": "sqlite",
     },

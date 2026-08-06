@@ -6,6 +6,7 @@ import { isWebSocketUpgradeRequest } from "./src/shared/websocket/is-websocket-u
 
 // Wrangler must see the Durable Object class exported from the deployed Worker.
 export { FaxSession } from "./src/server/session/fax-session.durable-object"
+export { FaxPollingCoordinator } from "./src/server/fax/fax-polling-coordinator.durable-object"
 
 /**
  * This custom Worker is the public entry point for the entire application.
