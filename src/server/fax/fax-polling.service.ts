@@ -1,0 +1,145 @@
+/**
+ * Polls every active InterFAX transaction as one batch, then synchronizes its
+ * public session projection and provider facts. Timing belongs to the separate
+ * polling coordinator; this service performs one complete polling pass only.
+ */
+import "server-only"
+
+import {
+  hasSessionFaxChanged,
+  hasTransmissionChanged,
+  isUndocumentedFailureStatus,
+  mapInterfaxFaxToSessionFax,
+  mapInterfaxFaxToTransmissionUpdate,
+  mapTransmissionRowToSessionFax,
+} from "@/server/fax/fax-polling.mapper"
+import { FaxTransmissionRepository } from "@/server/fax/fax-transmission.repository"
+import type { FaxTransmissionRow } from "@/server/fax/fax-transmission.schema"
+import {
+  createInterfaxService,
+  type InterfaxService,
+} from "@/server/fax/interfax.service"
+import type { InterfaxFax } from "@/server/fax/interfax.schema"
+
+type FaxPollingEnvironment = Pick<
+  CloudflareEnv,
+  | "APP_DATABASE"
+  | "FAX_SESSIONS"
+  | "INTERFAX_USERNAME"
+  | "INTERFAX_PASSWORD"
+>
+
+/** Creates one polling service from the Worker's application bindings. */
+export function createFaxPollingService(
+  env: FaxPollingEnvironment
+): FaxPollingService {
+  return new FaxPollingService(
+    new FaxTransmissionRepository(env.APP_DATABASE),
+    createInterfaxService(env),
+    env.FAX_SESSIONS
+  )
+}
+
+/** Runs one provider polling pass; it does not own alarm scheduling. */
+export class FaxPollingService {
+  constructor(
+    private readonly transmissions: FaxTransmissionRepository,
+    private readonly interfax: InterfaxService,
+    private readonly sessions: FaxPollingEnvironment["FAX_SESSIONS"]
+  ) {}
+
+  /**
+   * Reads every active D1 row, requests their statuses in one InterFAX call,
+   * and persists only changed results. The return value tells the coordinator
+   * whether another polling alarm is needed.
+   */
+  async poll(): Promise<boolean> {
+    const active = await this.transmissions.findProcessing()
+
+    if (!active.length) {
+      return false
+    }
+
+    const providerFaxes = await this.interfax.getFaxes(
+      active.map(({ transactionId }) => transactionId)
+    )
+    const providerFaxById = new Map(
+      providerFaxes.map((fax) => [String(fax.id), fax])
+    )
+
+    for (const transmission of active) {
+      const providerFax = providerFaxById.get(transmission.transactionId)
+
+      if (!providerFax) {
+        throw new Error(
+          `InterFAX omitted transaction ${transmission.transactionId} from its batch response.`
+        )
+      }
+
+      await this.synchronizeTransmission(transmission, providerFax)
+    }
+
+    return !!(await this.transmissions.findProcessing()).length
+  }
+
+  /**
+   * Applies one provider result. The session is deliberately written first:
+   * if a final D1 row were written first and the session RPC then failed, that
+   * row would leave the active query and the browser could stay stale forever.
+   */
+  private async synchronizeTransmission(
+    transmission: FaxTransmissionRow,
+    providerFax: InterfaxFax
+  ): Promise<void> {
+    const transmissionUpdate = mapInterfaxFaxToTransmissionUpdate(providerFax)
+
+    if (!hasTransmissionChanged(transmission, transmissionUpdate)) {
+      return
+    }
+
+    if (isUndocumentedFailureStatus(providerFax.status)) {
+      console.warn({
+        event: "interfax_undocumented_final_status",
+        transactionId: transmission.transactionId,
+        providerStatus: providerFax.status,
+      })
+    }
+
+    const currentSessionFax = mapTransmissionRowToSessionFax(transmission)
+    const nextSessionFax = mapInterfaxFaxToSessionFax(providerFax)
+
+    if (hasSessionFaxChanged(currentSessionFax, nextSessionFax)) {
+      await this.sessions
+        .getByName(transmission.sessionId)
+        .updateFax(nextSessionFax)
+    }
+
+    await this.transmissions.update(
+      transmission.transactionId,
+      transmissionUpdate
+    )
+
+    if (providerFax.status >= 0) {
+      logFinalProviderDiagnostics(transmission.transactionId, providerFax)
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// HELPERS
+// -----------------------------------------------------------------------------
+
+/** Logs useful final diagnostics without persisting provider-only metadata. */
+function logFinalProviderDiagnostics(
+  transactionId: string,
+  providerFax: InterfaxFax
+): void {
+  console.info({
+    event: "interfax_transaction_completed",
+    transactionId,
+    providerStatus: providerFax.status,
+    duration: providerFax.duration,
+    units: providerFax.units,
+    remoteCSID: providerFax.remoteCSID,
+  })
+}
