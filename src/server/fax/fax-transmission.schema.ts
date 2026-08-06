@@ -6,12 +6,6 @@
 import { sql } from "drizzle-orm"
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
-export const FAX_TRANSMISSION_STATUS = {
-  PROCESSING: "processing",
-  DELIVERED: "delivered",
-  FAILED: "failed",
-} as const
-
 export const FAX_RESOLUTION = {
   FINE: "Fine",
   STANDARD: "Standard",
@@ -23,16 +17,7 @@ export const faxTransmissionTable = sqliteTable(
   {
     transactionId: text("transaction_id").primaryKey(),
     sessionId: text("session_id").notNull(),
-    status: text("status", {
-      enum: [
-        FAX_TRANSMISSION_STATUS.PROCESSING,
-        FAX_TRANSMISSION_STATUS.DELIVERED,
-        FAX_TRANSMISSION_STATUS.FAILED,
-      ],
-    })
-      .notNull()
-      .default(FAX_TRANSMISSION_STATUS.PROCESSING),
-    providerStatus: integer("provider_status").notNull(),
+    providerStatus: integer("provider_status"),
     pagesSubmitted: integer("pages_submitted").notNull(),
     pagesSent: integer("pages_sent").notNull(),
     attemptsMade: integer("attempts_made").notNull(),
@@ -47,12 +32,8 @@ export const faxTransmissionTable = sqliteTable(
     completedAt: text("completed_at"),
   },
   (table) => [
-    index("fax_transmissions_status_idx").on(table.status),
+    index("fax_transmissions_provider_status_idx").on(table.providerStatus),
     index("fax_transmissions_session_id_idx").on(table.sessionId),
-    check(
-      "fax_transmissions_status",
-      sql`${table.status} IN ('processing', 'delivered', 'failed')`
-    ),
     check(
       "fax_transmissions_resolution",
       sql`${table.resolution} IN ('Fine', 'Standard')`
@@ -70,5 +51,4 @@ export const faxTransmissionTable = sqliteTable(
 
 export type FaxTransmissionRow = typeof faxTransmissionTable.$inferSelect
 export type NewFaxTransmissionRow = typeof faxTransmissionTable.$inferInsert
-export type FaxTransmissionStatus = FaxTransmissionRow["status"]
 export type FaxResolution = FaxTransmissionRow["resolution"]

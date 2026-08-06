@@ -3,15 +3,13 @@
  * records in D1. Submission creates rows here; the polling coordinator later
  * finds active rows and applies normalized InterFAX progress updates.
  */
-import { eq, sql } from "drizzle-orm"
+import { eq, isNull, lt, or, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/d1"
 
 import {
-  FAX_TRANSMISSION_STATUS,
   faxTransmissionTable,
   type FaxResolution,
   type FaxTransmissionRow,
-  type FaxTransmissionStatus,
 } from "@/server/fax/fax-transmission.schema"
 
 type FaxTransmissionDatabase = ReturnType<typeof createFaxTransmissionDatabase>
@@ -19,7 +17,6 @@ type FaxTransmissionDatabase = ReturnType<typeof createFaxTransmissionDatabase>
 export type CreateFaxTransmission = {
   transactionId: string
   sessionId: string
-  providerStatus: number
   pagesSubmitted: number
   pagesSent: number
   attemptsMade: number
@@ -29,7 +26,6 @@ export type CreateFaxTransmission = {
 }
 
 export type UpdateFaxTransmission = {
-  status: FaxTransmissionStatus
   providerStatus: number
   pagesSubmitted: number
   pagesSent: number
@@ -60,10 +56,7 @@ export class FaxTransmissionRepository {
   async create(transmission: CreateFaxTransmission): Promise<FaxTransmissionRow> {
     return this.db
       .insert(faxTransmissionTable)
-      .values({
-        ...transmission,
-        status: FAX_TRANSMISSION_STATUS.PROCESSING,
-      })
+      .values(transmission)
       .returning()
       .get()
   }
@@ -74,9 +67,9 @@ export class FaxTransmissionRepository {
       .select()
       .from(faxTransmissionTable)
       .where(
-        eq(
-          faxTransmissionTable.status,
-          FAX_TRANSMISSION_STATUS.PROCESSING
+        or(
+          isNull(faxTransmissionTable.providerStatus),
+          lt(faxTransmissionTable.providerStatus, 0)
         )
       )
       .all()
