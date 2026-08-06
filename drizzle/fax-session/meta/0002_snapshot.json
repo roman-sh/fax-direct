@@ -1,0 +1,167 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "ff162d0c-1b0d-4722-b7d6-921d477e917b",
+  "prevId": "2f75f3b3-ec47-43c0-aa02-b6d4c5a6c2ea",
+  "tables": {
+    "fax_session": {
+      "name": "fax_session",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "document_object_key": {
+          "name": "document_object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "document_original_name": {
+          "name": "document_original_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "document_page_count": {
+          "name": "document_page_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "document_size_bytes": {
+          "name": "document_size_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "recipient_display_value": {
+          "name": "recipient_display_value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "recipient_e164": {
+          "name": "recipient_e164",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "quote_amount": {
+          "name": "quote_amount",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "quote_currency": {
+          "name": "quote_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "payment_status": {
+          "name": "payment_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fax_status": {
+          "name": "fax_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fax_pages_sent": {
+          "name": "fax_pages_sent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fax_pages_submitted": {
+          "name": "fax_pages_submitted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fax_error": {
+          "name": "fax_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "fax_session_singleton": {
+          "name": "fax_session_singleton",
+          "value": "\"fax_session\".\"id\" = 1"
+        },
+        "fax_session_quote_currency": {
+          "name": "fax_session_quote_currency",
+          "value": "\"fax_session\".\"quote_currency\" IS NULL OR \"fax_session\".\"quote_currency\" = 'ILS'"
+        },
+        "fax_session_payment_status": {
+          "name": "fax_session_payment_status",
+          "value": "\"fax_session\".\"payment_status\" IS NULL OR \"fax_session\".\"payment_status\" IN ('pending', 'paid')"
+        },
+        "fax_session_fax_status": {
+          "name": "fax_session_fax_status",
+          "value": "\"fax_session\".\"fax_status\" IS NULL OR \"fax_session\".\"fax_status\" IN ('preparing', 'queued', 'sending', 'finalizing', 'service_delayed', 'delivered', 'failed')"
+        },
+        "fax_session_fax_pages_sent": {
+          "name": "fax_session_fax_pages_sent",
+          "value": "\"fax_session\".\"fax_pages_sent\" IS NULL OR \"fax_session\".\"fax_pages_sent\" >= 0"
+        },
+        "fax_session_fax_pages_submitted": {
+          "name": "fax_session_fax_pages_submitted",
+          "value": "\"fax_session\".\"fax_pages_submitted\" IS NULL OR \"fax_session\".\"fax_pages_submitted\" >= 0"
+        },
+        "fax_session_fax_page_progress": {
+          "name": "fax_session_fax_page_progress",
+          "value": "\"fax_session\".\"fax_pages_sent\" IS NULL OR \"fax_session\".\"fax_pages_submitted\" IS NULL OR \"fax_session\".\"fax_pages_sent\" <= \"fax_session\".\"fax_pages_submitted\""
+        },
+        "fax_session_fax_error": {
+          "name": "fax_session_fax_error",
+          "value": "\"fax_session\".\"fax_error\" IS NULL OR \"fax_session\".\"fax_error\" IN ('BUSY', 'CALL_REJECTED', 'CANCELED', 'CONNECTION_FAILED', 'DELIVERY_UNCONFIRMED', 'DESTINATION_UNAVAILABLE', 'DOCUMENT_PROCESSING_FAILED', 'FAX_INCOMPATIBLE', 'INVALID_NUMBER', 'NO_ANSWER', 'PARTIAL_TRANSMISSION', 'ROUTE_UNAVAILABLE', 'SERVICE_UNAVAILABLE', 'TRANSMISSION_INTERRUPTED', 'UNKNOWN_FAILURE', 'VOICE_ANSWERED')"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

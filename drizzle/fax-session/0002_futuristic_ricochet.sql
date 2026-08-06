@@ -1,0 +1,26 @@
+DROP TABLE `fax_session`;--> statement-breakpoint
+CREATE TABLE `fax_session` (
+	`id` integer PRIMARY KEY NOT NULL,
+	`document_object_key` text,
+	`document_original_name` text,
+	`document_page_count` integer,
+	`document_size_bytes` integer,
+	`recipient_display_value` text,
+	`recipient_e164` text,
+	`quote_amount` text,
+	`quote_currency` text,
+	`payment_status` text,
+	`fax_status` text,
+	`fax_pages_sent` integer,
+	`fax_pages_submitted` integer,
+	`fax_error` text,
+	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	CONSTRAINT "fax_session_singleton" CHECK("fax_session"."id" = 1),
+	CONSTRAINT "fax_session_quote_currency" CHECK("fax_session"."quote_currency" IS NULL OR "fax_session"."quote_currency" = 'ILS'),
+	CONSTRAINT "fax_session_payment_status" CHECK("fax_session"."payment_status" IS NULL OR "fax_session"."payment_status" IN ('pending', 'paid')),
+	CONSTRAINT "fax_session_fax_status" CHECK("fax_session"."fax_status" IS NULL OR "fax_session"."fax_status" IN ('preparing', 'queued', 'sending', 'finalizing', 'service_delayed', 'delivered', 'failed')),
+	CONSTRAINT "fax_session_fax_pages_sent" CHECK("fax_session"."fax_pages_sent" IS NULL OR "fax_session"."fax_pages_sent" >= 0),
+	CONSTRAINT "fax_session_fax_pages_submitted" CHECK("fax_session"."fax_pages_submitted" IS NULL OR "fax_session"."fax_pages_submitted" >= 0),
+	CONSTRAINT "fax_session_fax_page_progress" CHECK("fax_session"."fax_pages_sent" IS NULL OR "fax_session"."fax_pages_submitted" IS NULL OR "fax_session"."fax_pages_sent" <= "fax_session"."fax_pages_submitted"),
+	CONSTRAINT "fax_session_fax_error" CHECK("fax_session"."fax_error" IS NULL OR "fax_session"."fax_error" IN ('BUSY', 'CALL_REJECTED', 'CANCELED', 'CONNECTION_FAILED', 'DELIVERY_UNCONFIRMED', 'DESTINATION_UNAVAILABLE', 'DOCUMENT_PROCESSING_FAILED', 'FAX_INCOMPATIBLE', 'INVALID_NUMBER', 'NO_ANSWER', 'PARTIAL_TRANSMISSION', 'ROUTE_UNAVAILABLE', 'SERVICE_UNAVAILABLE', 'TRANSMISSION_INTERRUPTED', 'UNKNOWN_FAILURE', 'VOICE_ANSWERED'))
+);

@@ -12,6 +12,7 @@ import type { FaxSessionEvent } from "@/shared/session/fax-session-event"
 import {
   type FaxSessionDocument,
   type FaxSessionData,
+  type FaxSessionFax,
   type FaxSessionPayment,
   type FaxSessionQuote,
   type FaxSessionRecipient,
@@ -79,6 +80,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
 
     return {
       document: documentFromRow(row),
+      fax: faxFromRow(row),
       payment: paymentFromRow(row),
       quote: quoteFromRow(row),
       recipient: recipientFromRow(row),
@@ -275,6 +277,34 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   }
 
   /**
+   * Persists fax progress that has already been determined by the owning
+   * orchestration component. The delivery Workflow supplies `preparing` and
+   * `queued`; the future InterFAX poller supplies the remaining provider-driven
+   * states. This Durable Object stores the public state but does not interpret
+   * provider codes itself.
+   *
+   * `updateSession()` reads the resulting authoritative session and broadcasts
+   * it through the existing WebSocket path.
+   */
+  async updateFax(fax: FaxSessionFax): Promise<FaxSessionData> {
+    return this.updateSession(() => {
+      this.db
+        .update(faxSessionTable)
+        .set({
+          faxStatus: fax.status,
+          faxPagesSent: fax.pagesSent,
+          faxPagesSubmitted: fax.pagesSubmitted,
+          faxError: fax.error,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(faxSessionTable.id, SESSION_ROW_ID))
+        .run()
+
+      return true
+    })
+  }
+
+  /**
    * Runs a synchronous database change, then reads and broadcasts exactly one
    * authoritative snapshot. A false result means no row changed and suppresses
    * both the read and the WebSocket notification.
@@ -341,6 +371,28 @@ function documentFromRow(row: FaxSessionRow): FaxSessionDocument | null {
     originalName: row.documentOriginalName,
     pageCount: row.documentPageCount,
     sizeBytes: row.documentSizeBytes,
+  }
+}
+
+/**
+ * Reconstructs the public fax-delivery section from its flattened SQL columns.
+ * No status means delivery has not started, while a stored status requires both
+ * page counters so the browser can distinguish progress from final delivery.
+ */
+function faxFromRow(row: FaxSessionRow): FaxSessionFax | null {
+  if (
+    row.faxStatus === null ||
+    row.faxPagesSent === null ||
+    row.faxPagesSubmitted === null
+  ) {
+    return null
+  }
+
+  return {
+    status: row.faxStatus,
+    pagesSent: row.faxPagesSent,
+    pagesSubmitted: row.faxPagesSubmitted,
+    error: row.faxError,
   }
 }
 

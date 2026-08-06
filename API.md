@@ -237,11 +237,26 @@ const semanticCodeToMessageMap: Record<
 }
 ```
 
-The client selects the formatter by `FaxFailureSemanticCode` and calls
-`.format()` with the structured facts received in the session snapshot.
-Complete sentences remain inside the message template; application code does
-not assemble Hebrew grammatical fragments. Formatter instances are created
-once for the locale prop and reused between WebSocket updates.
+The same module owns a `progressStatusToMessageMap` for non-failure progress
+messages. The client selects a formatter using either `fax.status` or
+`fax.error`, then calls `.format()` with the structured facts received in the
+session snapshot. Complete sentences remain inside the message templates;
+application code does not assemble Hebrew grammatical fragments. Formatter
+instances are created once for the locale prop and reused between WebSocket
+updates.
+
+Initial progress messages:
+
+| Progress status | Hebrew message |
+| --- | --- |
+| `preparing` | מכינים את המסמך לשליחה. |
+| `queued` | הפקס התקבל וממתין לשליחה. |
+| `sending` with no sent pages | מתחברים למספר הפקס. |
+| `sending` with sent pages | Parameterized message such as "נשלח עמוד אחד מתוך שניים." |
+| `finalizing` | כל עמודי המסמך נשלחו. ממתינים לאישור המסירה. |
+| `service_delayed` | השליחה מתעכבת עקב תקלה זמנית בשירות. |
+| `delivered` | הפקס נשלח בהצלחה. |
+| `failed` | Use the formatter selected by `fax.error`. |
 
 Initial Hebrew messages and recommended controls:
 
@@ -289,8 +304,17 @@ The session Durable Object persists only the browser-facing fax facts and our
 semantic error:
 
 ```ts
+type FaxProgressStatus =
+  | "preparing"
+  | "queued"
+  | "sending"
+  | "finalizing"
+  | "service_delayed"
+  | "delivered"
+  | "failed"
+
 fax: {
-  status: "processing" | "delivered" | "failed"
+  status: FaxProgressStatus
   pagesSent: number
   pagesSubmitted: number
   error: FaxFailureSemanticCode | null
@@ -319,9 +343,18 @@ UI into locale catalogs is a separate, postponed refactor.
 - Read active transaction IDs from D1 and query InterFAX in batches through
   `/outbound/search?ids=...`.
 - Update D1 only when provider data changes.
-- Forward changes to the matching session Durable Object. A positive provider
-  status is classified before setting `fax.error`; the Durable Object then
-  broadcasts its authoritative snapshot to the browser over WebSocket.
+- Map application and provider state into `FaxProgressStatus`:
+  - The delivery Workflow sets `preparing` before submission.
+  - A successful InterFAX submission sets `queued` while `provider_status` is
+    still `NULL`.
+  - A negative provider status normally sets `sending`.
+  - A negative provider status with all submitted pages sent sets `finalizing`.
+  - A known temporary provider hold, such as `-22`, sets `service_delayed`.
+  - Provider status `0` sets `delivered`.
+  - A positive provider status sets `failed` and is classified into
+    `fax.error`.
+- Forward changes to the matching session Durable Object, which broadcasts its
+  authoritative snapshot to the browser over WebSocket.
 - InterFAX webhooks are not required initially.
 
 ## User-visible state
@@ -330,11 +363,14 @@ Page progress and final delivery status are separate:
 
 | Stored state | Display |
 | --- | --- |
-| Processing, `0 / N` pages | Connecting |
-| Processing, `X / N` pages | `X of N pages sent` |
-| Processing, `N / N` pages | Finalizing delivery confirmation |
-| Delivered | Delivered |
-| Failed | Display the message derived from `fax.error` and the appropriate manual controls |
+| `preparing` | Preparing the document |
+| `queued` | Accepted and waiting to send |
+| `sending`, `0 / N` pages | Connecting |
+| `sending`, `X / N` pages | `X of N pages sent` |
+| `finalizing`, `N / N` pages | Finalizing delivery confirmation |
+| `service_delayed` | Temporary service delay |
+| `delivered` | Delivered |
+| `failed` | Display the message derived from `fax.error` and the appropriate manual controls |
 
 `pages_sent === pages_submitted` never means delivered by itself. Only the
 final InterFAX success status confirms delivery.
