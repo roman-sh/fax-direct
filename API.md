@@ -9,6 +9,12 @@ state, and UI behavior described below are planned.
 - Submit only after payment is confirmed.
 - Use the session ID as the InterFAX `reference`.
 - Store the returned InterFAX transaction ID as text.
+- Submit PDFs up to 1 MiB directly. For larger PDFs, create an InterFAX
+  document, upload sequential 1 MiB byte ranges through the Documents API,
+  then submit the fax using that document's `Content-Location` reference.
+- The provider client accepts a storage-agnostic ranged reader so the delivery
+  Workflow can read each chunk directly from R2 without placing PDF bytes in
+  Workflow parameters or step results.
 - Let the customer choose `Fine` or `Standard` resolution per fax.
 - Default to `Fine`; explain that it is sharper but may take longer.
 - Disable InterFAX automatic retries: each transaction gets one attempt.

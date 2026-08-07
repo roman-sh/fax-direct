@@ -1,16 +1,24 @@
 /**
  * Implements Fax Direct's small InterFAX REST boundary. The service submits
- * one PDF or reads many provider statuses; orchestration, persistence, and
- * user-facing status mapping remain in their respective application layers.
+ * one PDF, using InterFAX's chunked Documents API when needed, or reads many
+ * provider statuses. Orchestration and persistence remain elsewhere.
  */
 import "server-only"
 
 import {
-  interfaxErrorSchema,
   interfaxFaxBatchSchema,
-  type InterfaxError,
   type InterfaxFax,
 } from "@/server/fax/interfax.schema"
+import {
+  InterfaxDocumentService,
+  type InterfaxDocumentSource,
+  type PreparedInterfaxDocument,
+} from "@/server/fax/interfax-document.service"
+import {
+  createRejectedRequestError,
+  InterfaxServiceError,
+  readJson,
+} from "@/server/fax/interfax.error"
 import type { FaxResolution } from "@/server/fax/fax-transmission.schema"
 
 const INTERFAX_BASE_URL = "https://rest.interfax.net"
@@ -22,7 +30,7 @@ type InterfaxEnvironment = Pick<
 >
 
 export type SendFaxInput = {
-  document: BodyInit
+  document: InterfaxDocumentSource
   faxNumber: string
   reference: string
   resolution: FaxResolution
@@ -32,24 +40,11 @@ export type SendFaxResult = {
   transactionId: string
 }
 
-export type InterfaxServiceErrorCode =
-  | "INVALID_CONFIGURATION"
-  | "INVALID_PROVIDER_RESPONSE"
-  | "PROVIDER_REJECTED_REQUEST"
-
-/** Preserves a stable application code while retaining provider diagnostics. */
-export class InterfaxServiceError extends Error {
-  constructor(
-    readonly code: InterfaxServiceErrorCode,
-    message: string,
-    readonly status: number | null = null,
-    readonly providerError: InterfaxError | null = null,
-    options?: ErrorOptions
-  ) {
-    super(message, options)
-    this.name = "InterfaxServiceError"
-  }
-}
+export type { InterfaxDocumentSource } from "@/server/fax/interfax-document.service"
+export {
+  InterfaxServiceError,
+  type InterfaxServiceErrorCode,
+} from "@/server/fax/interfax.error"
 
 /**
  * Creates a provider client from Cloudflare bindings. Supplying the bindings
@@ -64,6 +59,7 @@ export function createInterfaxService(
 /** Groups the two InterFAX operations required by the first delivery flow. */
 export class InterfaxService {
   private readonly authorization: string
+  private readonly documents: InterfaxDocumentService
 
   constructor(username: string, password: string) {
     if (!username || !password) {
@@ -74,6 +70,7 @@ export class InterfaxService {
     }
 
     this.authorization = createBasicAuthorization(username, password)
+    this.documents = new InterfaxDocumentService(this.authorization)
   }
 
   /**
@@ -87,6 +84,7 @@ export class InterfaxService {
     reference,
     resolution,
   }: SendFaxInput): Promise<SendFaxResult> {
+    const faxContent = createFaxContent(await this.documents.prepare(document))
     const url = new URL("/outbound/faxes", INTERFAX_BASE_URL)
     url.searchParams.set("faxNumber", faxNumber)
     url.searchParams.set("reference", reference)
@@ -99,9 +97,9 @@ export class InterfaxService {
       headers: {
         Accept: "application/json",
         Authorization: this.authorization,
-        "Content-Type": "application/pdf",
+        "Content-Type": faxContent.contentType,
       },
-      body: document,
+      body: faxContent.body,
     })
 
     if (response.status !== 201) {
@@ -172,6 +170,33 @@ export class InterfaxService {
 // HELPERS
 // -----------------------------------------------------------------------------
 
+type FaxContent = {
+  body: BodyInit
+  contentType: string
+}
+
+/** Converts a prepared document into the body expected by fax submission. */
+function createFaxContent(document: PreparedInterfaxDocument): FaxContent {
+  if (document.kind === "inline") {
+    return {
+      body: document.body,
+      contentType: "application/pdf",
+    }
+  }
+
+  const boundary = `fax-direct-${crypto.randomUUID()}`
+
+  return {
+    body: [
+      `--${boundary}`,
+      `Content-Location: ${document.url}`,
+      "",
+      `--${boundary}--`,
+    ].join("\r\n"),
+    contentType: `multipart/mixed; boundary=${boundary}`,
+  }
+}
+
 /** Creates an RFC 7617 Basic authorization value using UTF-8 credentials. */
 function createBasicAuthorization(username: string, password: string): string {
   const bytes = new TextEncoder().encode(`${username}:${password}`)
@@ -211,40 +236,4 @@ function readTransactionId(location: string): string {
   }
 
   return transactionId
-}
-
-/** Converts a rejected provider response into our stable service error. */
-async function createRejectedRequestError(
-  operation: string,
-  response: Response
-): Promise<InterfaxServiceError> {
-  const body = await readJson(response)
-  const providerError = interfaxErrorSchema.safeParse(body)
-  const detail = providerError.success
-    ? providerError.data.message
-    : typeof body === "string"
-      ? body
-      : response.statusText
-
-  return new InterfaxServiceError(
-    "PROVIDER_REJECTED_REQUEST",
-    `${operation}: HTTP ${response.status}${detail ? ` ${detail}` : ""}`,
-    response.status,
-    providerError.success ? providerError.data : null
-  )
-}
-
-/** Reads JSON without allowing an invalid response body to escape parsing. */
-async function readJson(response: Response): Promise<unknown> {
-  const text = await response.text()
-
-  if (!text) {
-    return null
-  }
-
-  try {
-    return JSON.parse(text)
-  } catch {
-    return text
-  }
 }
