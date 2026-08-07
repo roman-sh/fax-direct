@@ -54,11 +54,38 @@ export class FaxTransmissionRepository {
 
   /** Stores the initial provider state immediately after fax submission. */
   async create(transmission: CreateFaxTransmission): Promise<FaxTransmissionRow> {
-    return this.db
+    const created = await this.db
       .insert(faxTransmissionTable)
       .values(transmission)
+      .onConflictDoNothing()
       .returning()
       .get()
+
+    if (created) {
+      return created
+    }
+
+    const existing = await this.db
+      .select()
+      .from(faxTransmissionTable)
+      .where(eq(faxTransmissionTable.transactionId, transmission.transactionId))
+      .get()
+
+    if (
+      !existing ||
+      existing.sessionId !== transmission.sessionId ||
+      existing.resolution !== transmission.resolution ||
+      existing.submittedAt !== transmission.submittedAt
+    ) {
+      throw new Error(
+        `Fax transaction ${transmission.transactionId} conflicts with an existing D1 record.`
+      )
+    }
+
+    // A Workflow step can be replayed after its D1 write committed but before
+    // Cloudflare persisted the step result. Returning the same row makes that
+    // replay safe without overwriting newer polling fields.
+    return existing
   }
 
   /** Returns every transaction that still needs provider polling. */

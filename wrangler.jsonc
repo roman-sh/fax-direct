@@ -49,6 +49,13 @@
       "migrations_dir": "drizzle/d1",
     },
   ],
+  "workflows": [
+    {
+      "name": "fax-delivery",
+      "binding": "FAX_DELIVERY_WORKFLOW",
+      "class_name": "FaxDeliveryWorkflow",
+    },
+  ],
   "durable_objects": {
     "bindings": [
       {

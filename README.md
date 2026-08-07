@@ -1,268 +1,142 @@
 # Fax Direct
 
-**A locally adapted, one-time fax service — no registration, no subscription, no
-unrelated customer fields.**
+Fax Direct is a focused Hebrew service for sending a one-time fax without
+creating an account or buying a subscription. The first market is Israel: one
+PDF, one Israeli recipient, up to 10 pages, for a flat **₪9.90**.
 
-Fax Direct is for people who occasionally need to send a fax but no longer own a fax machine.
-Upload documents, arrange the pages, enter a fax number, pay once, and follow the
-transmission without leaving the page. The first market is Israel.
+The landing page and application are the same page. The customer selects a
+document, enters the fax number, pays once, and follows delivery through the
+same three-card interface.
 
-## Contents
+See [MILESTONES.md](./MILESTONES.md) for completed work and the remaining
+product roadmap. See [API.md](./API.md) for the detailed InterFAX data contract
+and status-mapping rules.
 
-- [Product thesis](#product-thesis)
-- [Customer experience](#customer-experience)
-- [Business model](#business-model)
-- [Architecture](#architecture)
-- [Fax lifecycle](#fax-lifecycle)
-- [Reliability and privacy](#reliability-and-privacy)
-- [Current status](#current-status)
-- [Development](#development)
-- [Open decisions](#open-decisions)
+## Current flow
 
-## Product thesis
+1. The browser creates or restores a signed, human-readable session cookie.
+2. The browser inspects the PDF for immediate feedback.
+3. The document endpoint repeats validation and page counting authoritatively,
+   stores the PDF in private R2, and saves its metadata in the session.
+4. The recipient endpoint validates and normalizes the Israeli fax number,
+   then stores the server-owned quote.
+5. Posthook currently simulates a payment provider callback.
+6. A confirmed payment starts one Cloudflare Workflow identified by the
+   session ID.
+7. The Workflow loads the PDF from R2, submits it to InterFAX, records the
+   transaction in D1, and starts the global polling loop.
+8. Every 10 seconds, the polling coordinator batches active InterFAX
+   transactions, updates D1, and projects user-facing progress into the
+   matching session Durable Object.
+9. The Durable Object broadcasts its authoritative session snapshot over the
+   browser's PartySocket connection.
 
-Many global online fax services already exist. The opportunity is not inventing another
-fax network — it is making the service **locally discoverable and locally comfortable
-to use**.
-
-People search for practical services in their native language. Initial Google Ads
-Keyword Planner research indicated approximately one thousand monthly searches across
-relevant Hebrew fax-sending terms in Israel. A focused Hebrew product can compete for
-that intent without depending on expensive global English-language advertising.
-
-> One shared product, introduced one local market at a time.
-
-If Israel validates the model, the same application can enter additional countries
-with:
-
-- Native-language pages
-- Local currency and pricing
-- Familiar payment methods
-- Country-specific number validation
-- Appropriate legal information
-
-Each market gets stable, indexable routes. IP detection may suggest a market, but it
-does not replace explicit URLs, language selection, canonical metadata, and `hreflang`.
-
-## Customer experience
-
-The product is both the landing page and the application:
-
-1. Upload one or more documents.
-2. Review, reorder, rotate, add, or remove pages.
-3. Produce one final PDF and calculate its billable page count.
-4. Enter the recipient fax number.
-5. See the complete price.
-6. Pay once.
-7. Watch the fax status update on the same page.
-
-Starting another fax begins a fresh attempt. There is no dashboard and no permanent
-customer account.
-
-### Frictionless and privacy-conscious
-
-Fax Direct deliberately avoids registration and profile creation. The customer should not need
-to provide a name, email address, phone number, Israeli ID, password, or other
-unrelated information unless a payment method or legal requirement makes a field
-unavoidable.
-
-The intended Bit experience is direct:
-
-1. Choose Bit.
-2. Scan a QR code on desktop, or open the Bit app through a mobile deep link.
-3. Approve the payment.
-4. Return to the fax already being processed.
-
-This minimizes the information collected by Fax Direct; it does not make the payment
-anonymous. Bit, the gateway, and the acquiring institutions still process the payer's
-account. Fax Direct retains only what is needed to confirm the purchase, support a refund, and
-meet legal obligations.
-
-## Business model
-
-The customer pays once based on the finalized page count. The planned Israeli price for
-a typical fax is approximately ₪10, so payment-provider economics must support
-microtransactions.
-
-For example, a fee of ₪1 plus 5% costs ₪1.50 on a ₪10 purchase — an effective rate of
-**15%**. Provider comparisons must therefore use the real cost of a ₪10 transaction,
-not only a headline percentage.
-
-The payment-provider decision considers:
-
-- Fixed and percentage fees for cards, Bit, and other wallets
-- Minimum transaction, monthly terminal, and minimum-volume charges
-- Refund, chargeback, settlement, and accounting-document costs
-- Whether Bit works without unrelated customer fields
-- API quality, webhook reliability, and refund support
-
-CardCom and Tranzila are leading low-friction candidates. Grow remains commercially
-interesting because its indicative pricing appears friendly to small transactions, but
-that advantage must be weighed against any mandatory name or phone fields.
-
-The selected provider must combine acceptable effective cost at approximately ₪10 with
-a clean Bit or wallet experience. Payment integration remains behind an internal
-adapter so it can change without redesigning the fax workflow.
+InterFAX submission itself is attempted once. If it fails, the Workflow marks
+the session fax as failed and stops; it does not automatically risk sending a
+second real fax. Manual retry UX is the next product layer.
 
 ## Architecture
 
-### Frontend
+| Component | Responsibility |
+| --- | --- |
+| Next.js | Server-rendered page, interactive React client, and HTTP route handlers |
+| OpenNext for Cloudflare | Packages Next.js as the deployed Worker |
+| Custom Worker entry point | Routes WebSocket upgrades and exports Durable Objects and Workflows |
+| Workers KV | Editable Israel market limits and pricing without redeployment |
+| R2 | Private, temporary PDF storage with a 24-hour lifecycle rule |
+| `FaxSession` Durable Object | Per-session SQLite state and live WebSocket snapshots |
+| `FaxDeliveryWorkflow` | Durable paid-fax orchestration through InterFAX submission |
+| D1 | Globally queryable InterFAX transaction records |
+| `FaxPollingCoordinator` Durable Object | Owns the single ten-second polling alarm |
+| InterFAX | Fax submission and delivery status provider |
+| Posthook | Temporary payment-callback simulator; not the production gateway |
 
-The website is a focused utility rather than a conventional SaaS dashboard. Its landing
-page and application are the same page: the customer can begin uploading immediately,
-while concise pricing, privacy, instructions, and frequently asked questions appear
-below the working interface.
+The storage responsibilities are deliberately separate:
 
-| Technology     | Role                                                                                      |
-| -------------- | ----------------------------------------------------------------------------------------- |
-| **Next.js**    | Application structure and rendering                                                       |
-| **shadcn/ui**  | Visual foundation for ordinary elements: buttons, inputs, cards, dialogs, alerts, FAQ     |
-| **Syncfusion** | Mature document viewer and page organizer: preview, import, reorder, rotate, remove pages |
+- The session Durable Object contains only browser-facing facts.
+- D1 contains provider transaction IDs and numeric InterFAX state so one
+  coordinator can find all active transmissions.
+- R2 contains the PDF bytes; neither Workflow parameters nor Durable Object
+  SQLite contain the document itself.
+- The Workflow executes the durable sequence but does not become the browser's
+  source of truth.
 
-The interface is composed from the individual shadcn/ui components the product needs,
-not from a large landing-page or dashboard template. This keeps the code and visual
-hierarchy small while retaining a consistent design language.
+## Project layout
 
-Hebrew and right-to-left layout come first for the Israeli launch. Components use
-logical spacing and responsive behavior so the same interface can later support
-left-to-right languages and work comfortably on mobile.
+| Path | Purpose |
+| --- | --- |
+| `src/app` | Next.js pages and API routes |
+| `src/components/fax-flow` | Three-card browser flow and client hooks |
+| `src/server/session` | Signed browser sessions and `FaxSession` Durable Object |
+| `src/server/pdf` | Authoritative PDF inspection |
+| `src/server/recipient` | Backend recipient validation |
+| `src/server/quote` | Server-owned price calculation |
+| `src/server/payment` | Current simulated payment orchestration |
+| `src/server/fax` | InterFAX client, Workflow, D1 repository, polling, and mappings |
+| `src/shared` | Types and validation shared safely with browser code |
+| `config` | Validated market configuration source |
+| `drizzle/d1` | Global D1 migrations |
+| `scripts` | Market publishing and direct InterFAX diagnostic scripts |
+| `worker.ts` | Public Cloudflare Worker entry point |
 
-Document preparation, recipient entry, pricing, payment, transmission, success, and
-failure all appear as states of the same page. There is no account dashboard and no
-separate status page.
-
-### Backend
-
-| Component                         | Responsibility                                                                        |
-| --------------------------------- | ------------------------------------------------------------------------------------- |
-| **Next.js route handlers**        | Uploads, payment creation, and webhook routes                                         |
-| **OpenNext + Cloudflare Workers** | Run the Next.js application on Cloudflare                                             |
-| **Cloudflare Workflow** (per fax) | Owns the durable business sequence, waits for provider events, retries external calls |
-| **Durable Object** (per fax)      | Stores the latest browser-facing state and maintains the WebSocket connection         |
-| **R2**                            | Temporarily holds the finalized PDF                                                   |
-| **Phaxio**                        | Sends the fax — its HTTP API is called directly, not through its obsolete Node.js SDK |
-| **Ky**                            | Wraps Fetch with the shared Phaxio request and error policy                           |
-| **Market configuration**          | Locale, writing direction, pricing, payment options, recipient rules, metadata, legal |
-
-The Workflow and Durable Object have deliberately separate responsibilities: the
-Workflow executes paid work reliably; the Durable Object keeps the browser informed.
-
-The MVP does not require PostgreSQL, MongoDB, Redis, BullMQ, Supabase, NestJS, or a
-separate always-running server.
-
-### Cloudflare plan
-
-Cloudflare Free is sufficient for development and low-volume testing, but Workers Free
-limits each invocation to 10 ms of CPU and the compressed Worker bundle to 3 MB;
-exceeding free limits can fail requests. The plan is to develop on Free and upgrade to
-Workers Paid, starting around $5 per month, before accepting real payments. Workers
-Paid is separate from the website's Cloudflare Pro plan.
-
-## Fax lifecycle
-
-1. **Create the attempt.** The application generates a cryptographically random
-   fax-session identifier, selects its Durable Object, and places the identifier in an
-   HTTP-only secure cookie.
-2. **Prepare the document.** The browser organizes the pages and produces one PDF. The
-   server validates it, counts its pages, and calculates the price.
-3. **Store temporarily.** The PDF is placed in R2 at an unguessable path derived from
-   the session identifier. Its exact URL is public so Phaxio can fetch it. A one-day
-   lifecycle rule removes abandoned and completed uploads.
-4. **Create payment.** The server associates the payment and a new Workflow instance
-   with the fax-session identifier.
-5. **Confirm payment.** The Workflow waits for a `payment-confirmed` event. The
-   verified payment webhook sends that event to the instance; Workflows can buffer it
-   if it arrives before the matching wait.
-6. **Submit the fax.** A durable step sends Phaxio the R2 URL, recipient number, and a
-   unique tag equal to the session identifier. It persists the returned Phaxio fax ID.
-7. **Follow transmission.** Verified Phaxio webhooks send events to the Workflow. The
-   Workflow updates the Durable Object, which broadcasts honest states such as
-   _submitting_, _transmitting_, _delivered_, or _failed_.
-8. **Delete the provider copy.** After a terminal result, a durable cleanup step calls
-   Phaxio's fax-file deletion endpoint. Phaxio otherwise retains the document for
-   approximately thirteen months. The fax record itself remains.
-9. **Finish.** The Workflow completes after cleanup. The Durable Object retains the
-   latest presentation state so a page reload can restore the result.
-
-Starting a new fax replaces the cookie with a new session identifier. The previous
-Workflow can still receive late callbacks and finish cleanup.
-
-## Reliability and privacy
-
-- A **single identifier** connects the cookie, Workflow, Durable Object, R2 path,
-  payment metadata, and Phaxio tag.
-- **Workflow steps persist their results**, so later failures do not restart every
-  completed operation.
-- **Webhooks are verified and handled idempotently** because providers may deliver
-  duplicates.
-- **Retryable failures use bounded step retries.** Permanent validation errors are
-  recorded without pointless retries. A `429 Too Many Requests` response is retried
-  after the appropriate delay.
-- **Submission timeouts are treated as ambiguous.** Phaxio may have accepted the fax
-  even if its response was lost, so the application searches by the unique tag before
-  submitting again. The tag helps reconciliation; it is not an idempotency key.
-- **WebSocket loss never interrupts paid work.** Reloading reconnects through the
-  cookie and retrieves the Durable Object's latest state.
-- **Documents are short-lived.** R2 expires its copy after one day, and the Workflow
-  explicitly deletes Phaxio's copy after transmission.
-
-## Current status
-
-The repository contains the initial Next.js application configured for Cloudflare
-Workers through OpenNext. The product workflow described above has **not yet been
-implemented**.
-
-Planned application directories:
-
-| Directory             | Purpose                                         |
-| --------------------- | ----------------------------------------------- |
-| `src/app`             | Pages and route handlers                        |
-| `src/components`      | Interface components                            |
-| `src/durable-objects` | Session state and WebSocket handling            |
-| `src/workflows`       | Durable fax orchestration                       |
-| `src/phaxio`          | Phaxio client and error policy                  |
-| `src/payments`        | Payment abstraction and provider implementation |
-| `src/markets`         | Country-specific product and recipient rules    |
-| `src/locales`         | Native-language interface and search content    |
+Server-only code lives under `src/server`. Code under `src/shared` must remain
+safe to bundle into the browser.
 
 ## Development
 
-| Command                | Purpose                                               |
-| ---------------------- | ----------------------------------------------------- |
-| `npm install`          | Install dependencies                                  |
-| `npm run dev`          | Run the normal Next.js development server             |
-| `npm run build`        | Create a regular Next.js production build             |
-| `npm run config:seed`  | Validate and seed market configuration in local KV     |
-| `npm run config:publish` | Validate and publish market configuration to remote KV |
-| `npm run preview`      | Build and run in the local Cloudflare Workers runtime |
-| `npm run deploy`       | Build through OpenNext and deploy to Cloudflare       |
+| Command | Purpose |
+| --- | --- |
+| `npm install` | Install dependencies |
+| `npm run dev` | Run the normal Next.js development server |
+| `npm run build` | Build the Next.js application |
+| `npm run preview` | Build and preview through OpenNext/Cloudflare |
+| `npm run deploy` | Build and deploy the Worker to Cloudflare |
+| `npm run cf-typegen` | Regenerate TypeScript types for Cloudflare bindings |
+| `npm run config:seed` | Validate and seed local `market:IL` KV data |
+| `npm run config:publish` | Validate and publish remote `market:IL` KV data |
+| `npm run db:d1:generate` | Generate a D1 migration from the Drizzle schema |
+| `npm run db:d1:migrate:local` | Apply D1 migrations locally |
+| `npm run db:d1:migrate:remote` | Apply D1 migrations in Cloudflare |
+| `npm run interfax:test` | Send a diagnostic fax using `.dev.vars` credentials |
 
-Market settings are edited in `config/market.il.json`. Both configuration commands
-validate the file before writing the `market:IL` KV entry and verify the stored value
-afterward. Publishing configuration does not redeploy the application.
+`npm run dev` is useful for interface work, but the current internal Durable
+Object and Workflow bindings require a deployed Worker for a complete
+end-to-end test. The OpenNext build still verifies that the Worker bundle can
+be produced locally.
 
-Workers KV is used for operational market settings—currently the page limit, file-size
-limit, and price—so they can be changed without rebuilding or redeploying the Worker.
-The backend reads KV as the source of truth and validates every value with Zod before
-using it; invalid or missing configuration fails safely instead of applying defaults.
+## Configuration
 
-Workflows, Durable Objects, and R2 can be simulated locally through Wrangler.
-Production provider webhooks can be represented by test routes or forwarded to the
-local Worker.
+Operational market settings live in `config/market.il.json`. Publishing writes
+the validated object to the `market:IL` KV key, allowing the page limit, upload
+limit, and price to change without redeploying the application.
 
-Deployment has not yet been performed. Production resource bindings, secrets, callback
-URLs, domain routing, security rules, and retention policies still require
-configuration.
+Local secrets are read from the ignored `.dev.vars` file. Production secrets
+are stored through Wrangler. Current secret bindings include:
 
-## Open decisions
+- `SESSION_COOKIE_PASSWORD`
+- `POSTHOOK_API_KEY`
+- `INTERFAX_USERNAME`
+- `INTERFAX_PASSWORD`
 
-- Product and domain name
-- Initial Hebrew keyword set, landing-page copy, and measurement plan
-- Payment provider and exact checkout configuration
-- Customer price, minimum charge, and maximum acceptable payment cost
-- Supported upload formats and conversion policy
-- Document organizer integration and mobile behavior
-- User-facing failure categories and retry messages
-- Webhook verification details
-- Exact timeout and retry policies
-- Long-term localized route and `hreflang` convention
+Cloudflare resource bindings are declared in `wrangler.jsonc`: KV, private R2,
+D1, both Durable Object classes, and the delivery Workflow.
+
+## Reliability and privacy
+
+- Signed cookies prevent clients from inventing valid session identities.
+- Backend validation is authoritative even when the browser already validated.
+- PDFs stay private in R2 and expire after 24 hours.
+- InterFAX is configured to delete its fax image after completion.
+- Workflow steps checkpoint their results, so later failures resume after the
+  last completed step.
+- The external fax-submission step has automatic retries disabled because it is
+  not idempotent.
+- D1 insertion is replay-safe if Cloudflare repeats the persistence step.
+- Payment callbacks use a deterministic Workflow instance ID, preventing a
+  duplicate callback from starting a second initial delivery.
+- WebSocket loss does not stop paid backend work; reconnecting restores the
+  latest Durable Object snapshot.
+
+The first release intentionally treats an InterFAX submission error as failed.
+Searching InterFAX by the session reference to reconcile an ambiguous timeout
+is a later reliability refinement.
