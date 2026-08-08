@@ -133,6 +133,17 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
       return
     }
 
+    // Establish the initial browser state before D1 makes this fax visible to
+    // the global poller. Otherwise an existing alarm could publish a newer
+    // provider state and this Workflow could incorrectly overwrite it later.
+    await step.do("mark-queued", async () => {
+      await sessionObject.updateFax(
+        createInitialFax(FAX_STATUS.QUEUED, faxParams.document.pageCount)
+      )
+
+      return null
+    })
+
     await step.do("store-transmission", async () => {
       await new FaxTransmissionRepository(this.env.APP_DATABASE).create({
         transactionId: providerSubmission.transactionId,
@@ -152,14 +163,6 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
       await this.env.FAX_POLLING_COORDINATOR
         .getByName(FAX_POLLING_COORDINATOR_NAME)
         .managePolling()
-
-      return null
-    })
-
-    await step.do("mark-queued", async () => {
-      await sessionObject.updateFax(
-        createInitialFax(FAX_STATUS.QUEUED, faxParams.document.pageCount)
-      )
 
       return null
     })
