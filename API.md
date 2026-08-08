@@ -1,8 +1,13 @@
-# Fax API Design
+# InterFAX Contract and Delivery Rules
 
-Concise reference for the first InterFAX integration. The D1 transmission
-storage foundation is implemented; provider submission, polling, session fax
-state, and UI behavior described below are planned.
+Technical reference for Fax Direct's InterFAX boundary. It records provider
+payloads, persisted fields, status mapping, and delivery invariants that are too
+detailed for `README.md`. Product progress and future work belong in
+`MILESTONES.md`.
+
+Provider submission, chunked document upload, D1 persistence, polling, Durable
+Object fax state, and Workflow orchestration are implemented. Sections marked
+as planned describe the remaining browser UI and manual-recovery behavior.
 
 ## Sending
 
@@ -15,15 +20,18 @@ state, and UI behavior described below are planned.
 - The provider client accepts a storage-agnostic ranged reader so the delivery
   Workflow can read each chunk directly from R2 without placing PDF bytes in
   Workflow parameters or step results.
-- Let the customer choose `Fine` or `Standard` resolution per fax.
-- Default to `Fine`; explain that it is sharper but may take longer.
+- Submit `Fine` resolution in the first release. The provider boundary and D1
+  schema also support the tested `Standard` value, so a customer choice can be
+  added later without changing provider storage.
 - Disable InterFAX automatic retries: each transaction gets one attempt.
-- A final failure is shown immediately with a clear explanation. The customer
-  can edit the recipient or start a manual retry instead of waiting through
-  automatic retries.
-- A manual retry reads the retained PDF from R2 and submits a fresh InterFAX
-  request, creating a new InterFAX transaction and D1 row. Do not use the
-  InterFAX resend endpoint because the provider image is deleted after use.
+- If submission throws before a transaction is persisted, mark the session fax
+  as `failed` with `UNKNOWN_FAILURE`. Do not create a D1 row or start polling.
+- The first release deliberately treats ambiguous submission failures the same
+  way. Searching by the session reference before retrying is postponed.
+- Planned manual retry behavior reads the retained PDF from R2 and submits a
+  fresh InterFAX request, creating a new Workflow instance, InterFAX
+  transaction, and D1 row. Do not use the InterFAX resend endpoint because the
+  provider image is deleted after use.
 
 ## D1 transmission record
 
@@ -205,11 +213,12 @@ rather than presenting an unsupported precise diagnosis.
 | `SERVICE_UNAVAILABLE` | `1`, `256`, `205000`, `205001`, `206001` |
 | `UNKNOWN_FAILURE` | `7200` and any undocumented positive status |
 
-## Client-side fax messages and enforced locale
+## Planned client-side fax messages and enforced locale
 
 Use `intl-messageformat` in the interactive client for fax progress and failure
 messages. It provides ICU message-template interpolation and plural selection
-without introducing a full translation-management system.
+without introducing a full translation-management system. This package and
+the delivery-status UI have not been added yet.
 
 The client does not infer its locale from each WebSocket event. The page's
 Server Component selects the enforced locale during the initial HTTP render and
@@ -348,7 +357,9 @@ UI into locale catalogs is a separate, postponed refactor.
 - Polling runs every 10 seconds.
 - Read active transaction IDs from D1 and query InterFAX in batches through
   `/outbound/search?ids=...`.
-- Update D1 only when provider data changes.
+- On every poll, write the provider result to D1 and write the derived public
+  state to the matching session Durable Object. The Durable Object broadcasts
+  the refreshed authoritative snapshot even when its values are unchanged.
 - Map application and provider state into `FaxProgressStatus`:
   - The delivery Workflow sets `preparing` before submission.
   - A successful InterFAX submission sets `queued` while `provider_status` is
@@ -363,7 +374,7 @@ UI into locale catalogs is a separate, postponed refactor.
   authoritative snapshot to the browser over WebSocket.
 - InterFAX webhooks are not required initially.
 
-## User-visible state
+## Planned user-visible state
 
 Page progress and final delivery status are separate:
 

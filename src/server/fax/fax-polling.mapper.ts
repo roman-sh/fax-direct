@@ -6,7 +6,6 @@
  */
 import "server-only"
 
-import type { FaxTransmissionRow } from "@/server/fax/fax-transmission.schema"
 import type { UpdateFaxTransmission } from "@/server/fax/fax-transmission.repository"
 import type { InterfaxFax } from "@/server/fax/interfax.schema"
 import { FAX_STATUS } from "@/shared/session/fax-session-status"
@@ -88,45 +87,6 @@ export function mapInterfaxFaxToSessionFax(fax: InterfaxFax): FaxSessionFax {
     pagesSent: fax.pagesSent,
     pagesSubmitted: fax.pagesSubmitted,
   })
-}
-
-/** Reconstructs the public projection represented by the current D1 row. */
-export function mapTransmissionRowToSessionFax(
-  transmission: FaxTransmissionRow
-): FaxSessionFax {
-  return mapProgressFactsToSessionFax({
-    providerStatus: transmission.providerStatus,
-    pagesSent: transmission.pagesSent,
-    pagesSubmitted: transmission.pagesSubmitted,
-  })
-}
-
-/** Returns true when a provider poll contains D1 facts not already persisted. */
-export function hasTransmissionChanged(
-  current: FaxTransmissionRow,
-  next: UpdateFaxTransmission
-): boolean {
-  return (
-    current.providerStatus !== next.providerStatus ||
-    current.pagesSubmitted !== next.pagesSubmitted ||
-    current.pagesSent !== next.pagesSent ||
-    current.attemptsMade !== next.attemptsMade ||
-    current.attemptsTotal !== next.attemptsTotal ||
-    current.completedAt !== next.completedAt
-  )
-}
-
-/** Returns true when a poll changes anything visible to the browser. */
-export function hasSessionFaxChanged(
-  current: FaxSessionFax,
-  next: FaxSessionFax
-): boolean {
-  return (
-    current.status !== next.status ||
-    current.pagesSent !== next.pagesSent ||
-    current.pagesSubmitted !== next.pagesSubmitted ||
-    current.error !== next.error
-  )
 }
 
 /** Identifies an undocumented positive status for operational logging. */

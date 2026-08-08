@@ -6,12 +6,9 @@
 import "server-only"
 
 import {
-  hasSessionFaxChanged,
-  hasTransmissionChanged,
   isUndocumentedFailureStatus,
   mapInterfaxFaxToSessionFax,
   mapInterfaxFaxToTransmissionUpdate,
-  mapTransmissionRowToSessionFax,
 } from "@/server/fax/fax-polling.mapper"
 import { FaxTransmissionRepository } from "@/server/fax/fax-transmission.repository"
 import type { FaxTransmissionRow } from "@/server/fax/fax-transmission.schema"
@@ -43,26 +40,31 @@ export function createFaxPollingService(
 /** Runs one provider polling pass; it does not own alarm scheduling. */
 export class FaxPollingService {
   constructor(
-    private readonly transmissions: FaxTransmissionRepository,
-    private readonly interfax: InterfaxService,
-    private readonly sessions: FaxPollingEnvironment["FAX_SESSIONS"]
+    private readonly transmissions: FaxTransmissionRepository,        // D1 rows
+    private readonly interfax: InterfaxService,                       // The InterFAX API client
+    private readonly sessions: FaxPollingEnvironment["FAX_SESSIONS"]  // durable object's data
   ) {}
 
   /**
    * Reads every active D1 row, requests their statuses in one InterFAX call,
-   * and persists only changed results. The return value tells the coordinator
+   * and synchronizes every result. The return value tells the coordinator
    * whether another polling alarm is needed.
+   * Transmission: row in D1; Transaction: fax object from interfax api;
    */
   async poll(): Promise<boolean> {
+    // collect rows in active(processing) state from D1 to poll
     const active = await this.transmissions.findProcessing()
 
     if (!active.length) {
-      return false
+      return false  // stops polling
     }
 
+    // fetches transactions(faxes) from interfax api
     const providerFaxes = await this.interfax.getFaxes(
-      active.map(({ transactionId }) => transactionId)
+      active.map(({ transactionId }) => transactionId)  // array of transactionIds
     )
+
+    // creates a map of transactionIds to transaction objects for O(1) lookup
     const providerFaxById = new Map(
       providerFaxes.map((fax) => [String(fax.id), fax])
     )
@@ -93,10 +95,6 @@ export class FaxPollingService {
   ): Promise<void> {
     const transmissionUpdate = mapInterfaxFaxToTransmissionUpdate(providerFax)
 
-    if (!hasTransmissionChanged(transmission, transmissionUpdate)) {
-      return
-    }
-
     if (isUndocumentedFailureStatus(providerFax.status)) {
       console.warn({
         event: "interfax_undocumented_final_status",
@@ -105,14 +103,14 @@ export class FaxPollingService {
       })
     }
 
-    const currentSessionFax = mapTransmissionRowToSessionFax(transmission)
     const nextSessionFax = mapInterfaxFaxToSessionFax(providerFax)
 
-    if (hasSessionFaxChanged(currentSessionFax, nextSessionFax)) {
-      await this.sessions
-        .getByName(transmission.sessionId)
-        .updateFax(nextSessionFax)
-    }
+    // Every poll refreshes the browser-facing state and broadcasts a snapshot.
+    // Besides keeping the flow straightforward, this periodically reconciles
+    // the session if a previous WebSocket update was not observed by a client.
+    await this.sessions
+      .getByName(transmission.sessionId)
+      .updateFax(nextSessionFax)
 
     await this.transmissions.update(
       transmission.transactionId,
