@@ -357,6 +357,10 @@ UI into locale catalogs is a separate, postponed refactor.
 - Polling runs every 10 seconds.
 - Read active transaction IDs from D1 and query InterFAX in batches through
   `/outbound/search?ids=...`.
+- If one transaction is omitted or fails while synchronizing, log it and
+  continue processing the other independent faxes. Its unchanged active D1 row
+  is retried on the next poll; failure of the entire provider request still
+  propagates to the alarm handler.
 - On every poll, write the provider result to D1 and write the derived public
   state to the matching session Durable Object. The Durable Object broadcasts
   the refreshed authoritative snapshot even when its values are unchanged.

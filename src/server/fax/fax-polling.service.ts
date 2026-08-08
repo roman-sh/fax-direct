@@ -73,12 +73,25 @@ export class FaxPollingService {
       const providerFax = providerFaxById.get(transmission.transactionId)
 
       if (!providerFax) {
-        throw new Error(
-          `InterFAX omitted transaction ${transmission.transactionId} from its batch response.`
-        )
+        console.error({
+          event: "interfax_transaction_omitted",
+          transactionId: transmission.transactionId,
+        })
+        continue
       }
 
-      await this.synchronizeTransmission(transmission, providerFax)
+      try {
+        await this.synchronizeTransmission(transmission, providerFax)
+      } catch (error) {
+        // One fax must not prevent unrelated transactions in the same provider
+        // batch from advancing. Its unchanged D1 row remains active and will be
+        // retried during the next polling pass.
+        console.error({
+          event: "fax_transmission_sync_failed",
+          transactionId: transmission.transactionId,
+          error: readErrorMessage(error),
+        })
+      }
     }
 
     return !!(await this.transmissions.findProcessing()).length
@@ -140,4 +153,9 @@ function logFinalProviderDiagnostics(
     units: providerFax.units,
     remoteCSID: providerFax.remoteCSID,
   })
+}
+
+/** Produces a stable structured-log value for an arbitrary thrown value. */
+function readErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
