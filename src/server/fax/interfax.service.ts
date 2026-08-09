@@ -18,8 +18,8 @@ import {
   readJson,
 } from "@/server/fax/interfax.error"
 import type { FaxResolution } from "@/server/fax/fax-transmission.schema"
+import { INTERFAX_BASE_URL } from "@/config"
 
-const INTERFAX_BASE_URL = "https://rest.interfax.net"
 const INTERFAX_SINGLE_ATTEMPT = "1"
 
 type InterfaxEnvironment = Pick<

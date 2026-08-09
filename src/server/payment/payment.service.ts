@@ -4,8 +4,8 @@ import { getCloudflareContext } from "@opennextjs/cloudflare"
 
 import type { FaxDeliveryWorkflowParams } from "@/server/fax/fax-delivery.workflow"
 import type { FaxSessionData } from "@/shared/session/fax-session.types"
+import { POSTHOOK_SCHEDULE_URL } from "@/config"
 
-const POSTHOOK_SCHEDULE_URL = "https://api.posthook.io/v1/hooks"
 const PAYMENT_WEBHOOK_PATH = "/api/webhooks/payment"
 const PAYMENT_CONFIRMATION_DELAY = "5s"
 const INITIAL_DELIVERY_WORKFLOW_PREFIX = "initial-"

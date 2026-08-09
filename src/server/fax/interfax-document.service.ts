@@ -7,8 +7,8 @@ import {
   createRejectedRequestError,
   InterfaxServiceError,
 } from "@/server/fax/interfax.error"
+import { INTERFAX_BASE_URL } from "@/config"
 
-const INTERFAX_BASE_URL = "https://rest.interfax.net"
 const INTERFAX_DOCUMENT_CHUNK_BYTES = 1024 * 1024
 
 /** A PDF source that can later be backed efficiently by ranged R2 reads. */
