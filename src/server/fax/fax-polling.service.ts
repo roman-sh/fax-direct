@@ -3,8 +3,6 @@
  * public session projection and provider facts. Timing belongs to the separate
  * polling coordinator; this service performs one complete polling pass only.
  */
-import "server-only"
-
 import {
   isUndocumentedFailureStatus,
   mapInterfaxFaxToSessionFax,

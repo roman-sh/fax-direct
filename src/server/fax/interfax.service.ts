@@ -3,8 +3,6 @@
  * one PDF, using InterFAX's chunked Documents API when needed, or reads many
  * provider statuses. Orchestration and persistence remain elsewhere.
  */
-import "server-only"
-
 import {
   interfaxFaxBatchSchema,
   type InterfaxFax,

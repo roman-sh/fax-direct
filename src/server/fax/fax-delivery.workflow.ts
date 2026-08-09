@@ -3,8 +3,6 @@
  * one initial instance per session; future manual retries can create new
  * instances of this same Workflow after a final failure.
  */
-import "server-only"
-
 import {
   WorkflowEntrypoint,
   type WorkflowEvent,

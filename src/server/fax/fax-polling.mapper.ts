@@ -4,8 +4,6 @@
  * Keeping this logic pure makes the provider's numeric protocol independent
  * from polling, persistence, and WebSocket delivery.
  */
-import "server-only"
-
 import type { UpdateFaxTransmission } from "@/server/fax/fax-transmission.repository"
 import type { InterfaxFax } from "@/server/fax/interfax.schema"
 import { FAX_STATUS } from "@/shared/session/fax-session-status"

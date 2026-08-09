@@ -3,8 +3,6 @@
  * are initialized, uploaded sequentially in 1 MiB ranges, and represented by
  * the provider URL that fax submission references.
  */
-import "server-only"
-
 import {
   createRejectedRequestError,
   InterfaxServiceError,

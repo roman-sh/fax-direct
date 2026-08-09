@@ -3,8 +3,6 @@
  * document source. Every range is pinned to the initially observed R2 ETag so
  * one fax cannot accidentally combine chunks from different object versions.
  */
-import "server-only"
-
 import type { InterfaxDocumentSource } from "@/server/fax/interfax-document.service"
 import type { FaxSessionDocument } from "@/shared/session/fax-session.types"
 

@@ -2,8 +2,6 @@
  * Defines the errors shared by InterFAX service modules and converts rejected
  * provider responses into stable application errors with provider details.
  */
-import "server-only"
-
 import {
   interfaxErrorSchema,
   type InterfaxError,
