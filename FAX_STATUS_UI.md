@@ -129,7 +129,7 @@ Behavior:
 | `sending`, pages sent | נשלחו {pagesSent} מתוך {pagesSubmitted} עמודים. | Sent {pagesSent} of {pagesSubmitted} pages. |
 | `finalizing` | כל עמודי המסמך שודרו. ממתינים לאישור המסירה. | All pages were transmitted. Waiting for final delivery confirmation. |
 | `service_delayed` | השליחה מתעכבת עקב תקלה זמנית בשירות. נמשיך לבדוק. | Delivery is delayed by a temporary service issue. We will keep checking. |
-| `delivered` | הפקס נשלח בהצלחה. | The fax was delivered successfully. |
+| `delivered` | הפקס נמסר בהצלחה. | The fax was delivered successfully. |
 | `failed` | Select the message using `fax.error`. | Select the message using `fax.error`. |
 
 The `sending` formatter should use ICU plural branches rather than the generic

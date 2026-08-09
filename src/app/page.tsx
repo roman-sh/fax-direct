@@ -24,6 +24,7 @@ export default async function Home() {
           </div>
 
           <FaxSheet
+            locale="he-IL"
             maxFileBytes={config.fax.maxFileBytes}
             maxPages={config.fax.maxPages}
           />

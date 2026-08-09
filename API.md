@@ -270,7 +270,7 @@ Initial progress messages:
 | `sending` with sent pages | Parameterized message such as "נשלח עמוד אחד מתוך שניים." |
 | `finalizing` | כל עמודי המסמך נשלחו. ממתינים לאישור המסירה. |
 | `service_delayed` | השליחה מתעכבת עקב תקלה זמנית בשירות. |
-| `delivered` | הפקס נשלח בהצלחה. |
+| `delivered` | הפקס נמסר בהצלחה. |
 | `failed` | Use the formatter selected by `fax.error`. |
 
 Initial Hebrew messages and recommended controls:

@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "cookie": "^2.0.1",
     "drizzle-orm": "^0.45.2",
+    "intl-messageformat": "^11.2.13",
     "iron-session": "^8.0.4",
     "libphonenumber-js": "^1.13.9",
     "lucide-react": "^1.27.0",

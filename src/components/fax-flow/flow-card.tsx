@@ -19,6 +19,8 @@ type FlowCardProps = {
   icon: ReactNode
   children: ReactNode
   onOpen: (step: FaxStep) => void
+  /** Prevents reopening a completed step, e.g. while a paid fax is sending. */
+  locked?: boolean
 }
 
 /**
@@ -34,6 +36,7 @@ export function FlowCard({
   icon,
   children,
   onOpen,
+  locked = false,
 }: FlowCardProps) {
   const isActive = step === activeStep
   const isComplete = step < activeStep
@@ -75,18 +78,21 @@ export function FlowCard({
 
       <button
         type="button"
-        disabled={!isComplete}
+        disabled={!isComplete || locked}
         onClick={() => onOpen(step)}
         className={cn(
           "absolute inset-0 hidden w-full flex-col items-center gap-3 overflow-hidden px-2 py-5 transition-opacity duration-150 lg:flex",
           isActive
             ? "pointer-events-none opacity-0"
             : "pointer-events-auto opacity-100 delay-150",
-          isComplete
+          isComplete && !locked
             ? "text-foreground hover:bg-brand-subtle/45"
-            : "cursor-default text-muted-foreground"
+            : "cursor-default",
+          isComplete ? "text-foreground" : "text-muted-foreground"
         )}
-        aria-label={isComplete ? `חזרה לשלב ${step}: ${title}` : title}
+        aria-label={
+          isComplete && !locked ? `חזרה לשלב ${step}: ${title}` : title
+        }
       >
         <span
           className={cn(

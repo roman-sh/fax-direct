@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
-import { CircleAlert, CreditCard, FileText, Phone } from "lucide-react"
+import { useEffect, useState, type ReactNode } from "react"
+import { CircleAlert, CreditCard, FileText, Phone, Send } from "lucide-react"
 
 import { DocumentStep } from "@/components/fax-flow/document-step"
+import { FaxDeliveryStatusStep } from "@/components/fax-flow/fax-delivery-status-step"
+import type { FaxUiLocale } from "@/components/fax-flow/fax-status-messages"
 import {
   FlowCard,
   type FaxStep,
@@ -21,9 +23,11 @@ import { useRecipientSave } from "@/components/fax-flow/use-recipient-save"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
+import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
 import type { FaxSessionData } from "@/shared/session/fax-session.types"
 
 type FaxSheetProps = {
+  locale: FaxUiLocale
   maxFileBytes: number
   maxPages: number
 }
@@ -64,6 +68,7 @@ export function FaxSheet(props: FaxSheetProps) {
 
 /** Coordinates local input with the authoritative Durable Object session. */
 function HydratedFaxFlow({
+  locale,
   maxFileBytes,
   maxPages,
   session,
@@ -75,6 +80,18 @@ function HydratedFaxFlow({
   const [activeStep, setActiveStep] = useState<FaxStep>(() =>
     getRestoredStep(session)
   )
+  // Checking `fax` as well keeps restoration resilient if the payment field
+  // ever disagrees with an existing fax record.
+  const isDeliveryPhase =
+    session.payment?.status === PAYMENT_STATUS.PAID || session.fax !== null
+
+  // Once payment is confirmed the paid fax may no longer be edited, so the
+  // flow snaps to the delivery-status card and stays there.
+  useEffect(() => {
+    if (isDeliveryPhase) {
+      setActiveStep(3)
+    }
+  }, [isDeliveryPhase])
   const [recipient, setRecipient] = useState(
     session.document ? (session.recipient?.displayValue ?? "") : ""
   )
@@ -169,6 +186,7 @@ function HydratedFaxFlow({
           summary={fileSummary}
           icon={<FileText className="size-4" />}
           onOpen={setActiveStep}
+          locked={isDeliveryPhase}
         >
           <DocumentStep
             file={file}
@@ -189,6 +207,7 @@ function HydratedFaxFlow({
           summary={recipientSummary}
           icon={<Phone className="size-4" />}
           onOpen={setActiveStep}
+          locked={isDeliveryPhase}
         >
           <RecipientStep
             recipient={recipient}
@@ -202,23 +221,43 @@ function HydratedFaxFlow({
         <FlowCard
           step={3}
           activeStep={activeStep}
-          title="תשלום ושליחה"
-          summary={formatFaxQuote(session.quote)}
-          icon={<CreditCard className="size-4" />}
+          title={isDeliveryPhase ? "סטטוס השליחה" : "תשלום ושליחה"}
+          summary={
+            isDeliveryPhase ? "סטטוס השליחה" : formatFaxQuote(session.quote)
+          }
+          icon={
+            isDeliveryPhase ? (
+              <Send className="size-4" />
+            ) : (
+              <CreditCard className="size-4" />
+            )
+          }
           onOpen={setActiveStep}
         >
-          <PaymentStep
-            fileSummary={session.document?.originalName ?? fileSummary}
-            recipientSummary={
-              session.recipient?.displayValue ?? recipientSummary
-            }
-            pageCount={session.document?.pageCount ?? pageCount}
-            payment={session.payment}
-            paymentStart={payment.state}
-            quote={session.quote}
-            onBack={() => setActiveStep(2)}
-            onStartPayment={handleStartPayment}
-          />
+          {isDeliveryPhase ? (
+            <FaxDeliveryStatusStep
+              fax={session.fax}
+              fileSummary={session.document?.originalName ?? fileSummary}
+              recipientSummary={
+                session.recipient?.displayValue ?? recipientSummary
+              }
+              pageCount={session.document?.pageCount ?? pageCount}
+              locale={locale}
+            />
+          ) : (
+            <PaymentStep
+              fileSummary={session.document?.originalName ?? fileSummary}
+              recipientSummary={
+                session.recipient?.displayValue ?? recipientSummary
+              }
+              pageCount={session.document?.pageCount ?? pageCount}
+              payment={session.payment}
+              paymentStart={payment.state}
+              quote={session.quote}
+              onBack={() => setActiveStep(2)}
+              onStartPayment={handleStartPayment}
+            />
+          )}
         </FlowCard>
       </div>
     </section>
@@ -226,6 +265,13 @@ function HydratedFaxFlow({
 }
 
 function getRestoredStep(session: FaxSessionData): FaxStep {
+  if (
+    session.payment?.status === PAYMENT_STATUS.PAID ||
+    session.fax !== null
+  ) {
+    return 3
+  }
+
   if (session.document && session.recipient && session.quote) {
     return 3
   }
