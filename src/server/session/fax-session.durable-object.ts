@@ -66,6 +66,14 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     })
   }
 
+  /**
+   * Identifies this object in logs. Sessions reach it through getByName, so the
+   * name is the browser session ID and joins these entries to the poller's.
+   */
+  private get sessionName(): string {
+    return this.ctx.id.name ?? this.ctx.id.toString()
+  }
+
   /** Reconstructs the nested API session from its single flattened SQL row. */
   async getSession(): Promise<FaxSessionData> {
     const row = this.db
@@ -112,6 +120,34 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     return new Response(null, {
       status: 101,
       webSocket: browserSocket,
+    })
+  }
+
+  /**
+   * Records why an accepted browser WebSocket stopped receiving updates. Code
+   * 1006 means the connection dropped without a close frame, which the browser
+   * recovers from silently, so these entries are the only trace it happened.
+   */
+  webSocketClose(
+    _webSocket: WebSocket,
+    code: number,
+    reason: string,
+    wasClean: boolean
+  ): void {
+    console.info("fax_socket_closed", {
+      sessionId: this.sessionName,
+      code,
+      reason,
+      wasClean,
+      remainingSockets: this.ctx.getWebSockets().length,
+    })
+  }
+
+  /** Records errors raised by an accepted browser WebSocket. */
+  webSocketError(_webSocket: WebSocket, error: unknown): void {
+    console.error("fax_socket_error", {
+      sessionId: this.sessionName,
+      error: error instanceof Error ? error.message : String(error),
     })
   }
 
@@ -330,7 +366,19 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
 
   /** Sends the same session snapshot to every browser viewing this object. */
   private broadcastSession(session: FaxSessionData): void {
-    for (const webSocket of this.ctx.getWebSockets()) {
+    const webSockets = this.ctx.getWebSockets()
+
+    // Only the anomaly is recorded. Logging every broadcast would add one entry
+    // per active fax every ten seconds while saying nothing; an update computed
+    // for a session nobody is watching is the case worth seeing.
+    if (webSockets.length === 0) {
+      console.warn("fax_socket_broadcast_without_listener", {
+        sessionId: this.sessionName,
+        faxStatus: session.fax?.status ?? null,
+      })
+    }
+
+    for (const webSocket of webSockets) {
       this.sendSession(webSocket, session)
     }
   }
