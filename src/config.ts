@@ -1,13 +1,12 @@
 /**
  * Every third-party origin this application calls.
  *
- * InterFAX is reached through a Cloudflare Tunnel rather than directly, because
- * its edge rejects Cloudflare's egress addresses: identical credentials return
- * 200 from a dedicated host and 401 from a Worker, and the rejection happens
- * before authentication is evaluated. The tunnel exits from a dedicated server
- * and forwards to https://rest.interfax.net unchanged, so paths and provider
- * behavior are identical. Point this back at the provider once InterFAX allows
- * requests from Cloudflare ranges.
+ * InterFAX is reached through a Cloudflare Tunnel rather than directly. Its edge
+ * returns 401 before evaluating Basic auth when X-Forwarded-For contains an IPv6
+ * address, which is how requests from Cloudflare Workers arrive. The tunnel sends
+ * traffic through nginx, which removes X-Forwarded-For before proxying the request
+ * to https://rest.interfax.net. Direct routing is safe only after InterFAX accepts
+ * IPv6 client addresses correctly.
  */
 
 export const INTERFAX_BASE_URL = "https://interfax.fax.direct"

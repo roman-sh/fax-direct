@@ -121,6 +121,19 @@ are stored through Wrangler. Current secret bindings include:
 Cloudflare resource bindings are declared in `wrangler.jsonc`: KV, private R2,
 D1, both Durable Object classes, and the delivery Workflow.
 
+### InterFAX transport
+
+Production requests use `https://interfax.fax.direct`, which must remain routed
+through the Cloudflare Tunnel to nginx on `http://localhost:8080`. nginx removes
+`X-Forwarded-For` and proxies the request to `https://rest.interfax.net` with the
+provider host and TLS SNI preserved. This proxy is required because InterFAX
+returns 401 before evaluating Basic auth when `X-Forwarded-For` contains an IPv6
+address, as it does for direct requests from Cloudflare Workers.
+
+The `npm run interfax:test` diagnostic intentionally calls InterFAX directly
+from the developer machine, so it can distinguish provider or authentication
+problems from the Cloudflare transport path.
+
 ## Reliability and privacy
 
 - Signed cookies prevent clients from inventing valid session identities.
