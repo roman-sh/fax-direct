@@ -71,8 +71,8 @@ export class FaxPollingService {
       const providerFax = providerFaxById.get(transmission.transactionId)
 
       if (!providerFax) {
-        console.error({
-          event: "interfax_transaction_omitted",
+        console.error("interfax_transaction_omitted", {
+          sessionId: transmission.sessionId,
           transactionId: transmission.transactionId,
         })
         continue
@@ -84,8 +84,8 @@ export class FaxPollingService {
         // One fax must not prevent unrelated transactions in the same provider
         // batch from advancing. Its unchanged D1 row remains active and will be
         // retried during the next polling pass.
-        console.error({
-          event: "fax_transmission_sync_failed",
+        console.error("fax_transmission_sync_failed", {
+          sessionId: transmission.sessionId,
           transactionId: transmission.transactionId,
           error: readErrorMessage(error),
         })
@@ -107,8 +107,8 @@ export class FaxPollingService {
     const transmissionUpdate = mapInterfaxFaxToTransmissionUpdate(providerFax)
 
     if (isUndocumentedFailureStatus(providerFax.status)) {
-      console.warn({
-        event: "interfax_undocumented_final_status",
+      console.warn("interfax_undocumented_final_status", {
+        sessionId: transmission.sessionId,
         transactionId: transmission.transactionId,
         providerStatus: providerFax.status,
       })
@@ -129,7 +129,7 @@ export class FaxPollingService {
     )
 
     if (providerFax.status >= 0) {
-      logFinalProviderDiagnostics(transmission.transactionId, providerFax)
+      logFinalProviderDiagnostics(transmission, providerFax)
     }
   }
 }
@@ -140,12 +140,12 @@ export class FaxPollingService {
 
 /** Logs useful final diagnostics without persisting provider-only metadata. */
 function logFinalProviderDiagnostics(
-  transactionId: string,
+  transmission: FaxTransmissionRow,
   providerFax: InterfaxFax
 ): void {
-  console.info({
-    event: "interfax_transaction_completed",
-    transactionId,
+  console.info("interfax_transaction_completed", {
+    sessionId: transmission.sessionId,
+    transactionId: transmission.transactionId,
     providerStatus: providerFax.status,
     duration: providerFax.duration,
     units: providerFax.units,

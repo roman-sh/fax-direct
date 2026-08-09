@@ -169,13 +169,10 @@ export class InterfaxDocumentService {
 
       await response.body?.cancel()
     } catch (error) {
-      console.error(
-        JSON.stringify({
-          event: "interfax_document_cleanup_failed",
-          documentId,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      )
+      console.error("interfax_document_cleanup_failed", {
+        documentId,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 }

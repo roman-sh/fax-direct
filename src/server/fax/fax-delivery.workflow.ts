@@ -111,8 +111,7 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
         }
       )
     } catch (error) {
-      console.error({
-        event: "interfax_submission_failed",
+      console.error("interfax_submission_failed", {
         sessionId,
         error: readErrorMessage(error),
       })
