@@ -119,9 +119,14 @@ export class FaxPollingService {
     // Every poll refreshes the browser-facing state and broadcasts a snapshot.
     // Besides keeping the flow straightforward, this periodically reconciles
     // the session if a previous WebSocket update was not observed by a client.
+    // The Durable Object drops the write (returns null) when this transaction
+    // belongs to a superseded attempt — a manual retry may have started while
+    // this provider result was in flight. The D1 row is still updated below:
+    // it records per-transaction provider facts, and a final status must leave
+    // the active polling set either way.
     await this.sessions
       .getByName(transmission.sessionId)
-      .updateFax(nextSessionFax)
+      .updateFax(nextSessionFax, transmission.deliveryAttempt)
 
     await this.transmissions.update(
       transmission.transactionId,

@@ -2,13 +2,12 @@ import "server-only"
 
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 
-import type { FaxDeliveryWorkflowParams } from "@/server/fax/fax-delivery.workflow"
+import { startFaxDeliveryAttempt } from "@/server/fax/fax-delivery.service"
 import type { FaxSessionData } from "@/shared/session/fax-session.types"
 import { POSTHOOK_SCHEDULE_URL } from "@/config"
 
 const PAYMENT_WEBHOOK_PATH = "/api/webhooks/payment"
 const PAYMENT_CONFIRMATION_DELAY = "5s"
-const INITIAL_DELIVERY_WORKFLOW_PREFIX = "initial-"
 
 export type PaymentServiceErrorCode =
   | "NOT_READY"
@@ -50,7 +49,9 @@ export async function startFaxPayment(
 
 /**
  * Applies a delayed payment callback and durably ensures its delivery Workflow
- * exists. Repeated callbacks reuse the same deterministic Workflow ID.
+ * exists. Repeated callbacks are safe: the delivery gate re-issues the same
+ * attempt while `preparing` (idempotent instance creation) and declines once
+ * the delivery is in flight.
  */
 export async function confirmFaxPayment(
   sessionId: string
@@ -64,18 +65,7 @@ export async function confirmFaxPayment(
     return null
   }
 
-  // createBatch is idempotent: a duplicate webhook skips an existing instance
-  // instead of failing or starting a second delivery for the paid session.
-  await env.FAX_DELIVERY_WORKFLOW.createBatch([
-    {
-      id: `${INITIAL_DELIVERY_WORKFLOW_PREFIX}${sessionId}`,
-      params: {
-        sessionId,
-      } satisfies FaxDeliveryWorkflowParams,
-    },
-  ])
-
-  return session
+  return (await startFaxDeliveryAttempt(sessionId)) ?? session
 }
 
 async function schedulePaymentConfirmation(

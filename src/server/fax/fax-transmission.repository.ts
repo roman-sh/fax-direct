@@ -17,6 +17,7 @@ type FaxTransmissionDatabase = ReturnType<typeof createFaxTransmissionDatabase>
 export type CreateFaxTransmission = {
   transactionId: string
   sessionId: string
+  deliveryAttempt: number
   pagesSubmitted: number
   pagesSent: number
   attemptsMade: number
@@ -74,6 +75,7 @@ export class FaxTransmissionRepository {
     if (
       !existing ||
       existing.sessionId !== transmission.sessionId ||
+      existing.deliveryAttempt !== transmission.deliveryAttempt ||
       existing.resolution !== transmission.resolution ||
       existing.submittedAt !== transmission.submittedAt
     ) {

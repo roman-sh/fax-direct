@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1d6c6a98-0ea4-4cc0-a9b2-15084368c3b2",
+  "id": "4b872c2d-2cac-46d6-acb3-1431255dac7e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "fax_session": {
@@ -70,6 +70,49 @@
           "notNull": false,
           "autoincrement": false
         },
+        "payment_status": {
+          "name": "payment_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fax_status": {
+          "name": "fax_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fax_pages_sent": {
+          "name": "fax_pages_sent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fax_pages_submitted": {
+          "name": "fax_pages_submitted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fax_error": {
+          "name": "fax_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "delivery_attempt": {
+          "name": "delivery_attempt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "text",
@@ -91,6 +134,34 @@
         "fax_session_quote_currency": {
           "name": "fax_session_quote_currency",
           "value": "\"fax_session\".\"quote_currency\" IS NULL OR \"fax_session\".\"quote_currency\" = 'ILS'"
+        },
+        "fax_session_payment_status": {
+          "name": "fax_session_payment_status",
+          "value": "\"fax_session\".\"payment_status\" IS NULL OR \"fax_session\".\"payment_status\" IN ('pending', 'paid')"
+        },
+        "fax_session_fax_status": {
+          "name": "fax_session_fax_status",
+          "value": "\"fax_session\".\"fax_status\" IS NULL OR \"fax_session\".\"fax_status\" IN ('preparing', 'queued', 'sending', 'finalizing', 'service_delayed', 'delivered', 'failed')"
+        },
+        "fax_session_fax_pages_sent": {
+          "name": "fax_session_fax_pages_sent",
+          "value": "\"fax_session\".\"fax_pages_sent\" IS NULL OR \"fax_session\".\"fax_pages_sent\" >= 0"
+        },
+        "fax_session_fax_pages_submitted": {
+          "name": "fax_session_fax_pages_submitted",
+          "value": "\"fax_session\".\"fax_pages_submitted\" IS NULL OR \"fax_session\".\"fax_pages_submitted\" >= 0"
+        },
+        "fax_session_fax_page_progress": {
+          "name": "fax_session_fax_page_progress",
+          "value": "\"fax_session\".\"fax_pages_sent\" IS NULL OR \"fax_session\".\"fax_pages_submitted\" IS NULL OR \"fax_session\".\"fax_pages_sent\" <= \"fax_session\".\"fax_pages_submitted\""
+        },
+        "fax_session_delivery_attempt": {
+          "name": "fax_session_delivery_attempt",
+          "value": "\"fax_session\".\"delivery_attempt\" >= 0"
+        },
+        "fax_session_fax_error": {
+          "name": "fax_session_fax_error",
+          "value": "\"fax_session\".\"fax_error\" IS NULL OR \"fax_session\".\"fax_error\" IN ('BUSY', 'CALL_REJECTED', 'CANCELED', 'CONNECTION_FAILED', 'DELIVERY_UNCONFIRMED', 'DESTINATION_UNAVAILABLE', 'DOCUMENT_PROCESSING_FAILED', 'FAX_INCOMPATIBLE', 'INVALID_NUMBER', 'NO_ANSWER', 'PARTIAL_TRANSMISSION', 'ROUTE_UNAVAILABLE', 'SERVICE_UNAVAILABLE', 'TRANSMISSION_INTERRUPTED', 'UNKNOWN_FAILURE', 'VOICE_ANSWERED')"
         }
       }
     }

@@ -17,6 +17,11 @@ export const faxTransmissionTable = sqliteTable(
   {
     transactionId: text("transaction_id").primaryKey(),
     sessionId: text("session_id").notNull(),
+    // Which session delivery attempt owns this transaction. Polling results
+    // update the session only while this is still the current attempt.
+    deliveryAttempt: integer("delivery_attempt")
+      .notNull()
+      .default(1),
     providerStatus: integer("provider_status"),
     pagesSubmitted: integer("pages_submitted").notNull(),
     pagesSent: integer("pages_sent").notNull(),
@@ -45,6 +50,10 @@ export const faxTransmissionTable = sqliteTable(
     check(
       "fax_transmissions_attempt_counts",
       sql`${table.attemptsMade} >= 0 AND ${table.attemptsTotal} >= 0`
+    ),
+    check(
+      "fax_transmissions_delivery_attempt",
+      sql`${table.deliveryAttempt} >= 1`
     ),
   ]
 )

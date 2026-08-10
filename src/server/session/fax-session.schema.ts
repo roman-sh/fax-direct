@@ -45,6 +45,10 @@ export const faxSessionTable = sqliteTable(
     faxError: text("fax_error", {
       enum: FAX_FAILURE_SEMANTIC_CODES,
     }),
+    // Counts started deliveries (initial = 1) and numbers their Workflow ids.
+    deliveryAttempt: integer("delivery_attempt")
+      .notNull()
+      .default(0),
     updatedAt: text("updated_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
@@ -74,6 +78,10 @@ export const faxSessionTable = sqliteTable(
     check(
       "fax_session_fax_page_progress",
       sql`${table.faxPagesSent} IS NULL OR ${table.faxPagesSubmitted} IS NULL OR ${table.faxPagesSent} <= ${table.faxPagesSubmitted}`
+    ),
+    check(
+      "fax_session_delivery_attempt",
+      sql`${table.deliveryAttempt} >= 0`
     ),
     check(
       "fax_session_fax_error",

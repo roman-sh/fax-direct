@@ -1,7 +1,8 @@
 /**
- * Runs the durable, paid-fax delivery sequence. The payment webhook creates
- * one initial instance per session; future manual retries can create new
- * instances of this same Workflow after a final failure.
+ * Runs the durable, paid-fax delivery sequence. Every instance — the initial
+ * paid delivery and each manual retry — is created through the delivery gate
+ * (`beginDelivery` + fax-delivery.service.ts), which claims the session as
+ * `preparing` and numbers the instance id before this Workflow starts.
  */
 import {
   WorkflowEntrypoint,
@@ -24,6 +25,9 @@ const INTERFAX_ATTEMPTS_TOTAL = 1
 
 export type FaxDeliveryWorkflowParams = {
   sessionId: string
+  // Every session write and the D1 record carry the attempt, so results from
+  // a superseded attempt can never overwrite the state of a newer retry.
+  attempt: number
 }
 
 type FaxParams = {
@@ -46,7 +50,7 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
     event: Readonly<WorkflowEvent<FaxDeliveryWorkflowParams>>,
     step: WorkflowStep
   ): Promise<void> {
-    const { sessionId } = event.payload
+    const { sessionId, attempt } = event.payload
     const sessionObject = this.env.FAX_SESSIONS.getByName(sessionId)
 
     const faxParams = await step.do("load-fax-params", async () => {
@@ -58,19 +62,10 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
 
       // PDF and phone validation happened before they entered FaxSession. The
       // Workflow checks only that the values required for delivery are present.
+      // The delivery gate already claimed the session as `preparing`.
       if (!session.document || !session.recipient) {
         throw new Error(`Fax session ${sessionId} is missing delivery data.`)
       }
-
-      if (session.fax && session.fax.status !== FAX_STATUS.FAILED) {
-        throw new Error(`Fax session ${sessionId} is already being delivered.`)
-      }
-
-      const preparingFax = createInitialFax(
-        FAX_STATUS.PREPARING,
-        session.document.pageCount
-      )
-      await sessionObject.updateFax(preparingFax)
 
       return {
         document: session.document,
@@ -121,7 +116,8 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
       // second real fax when an accepted response was lost in transit.
       await step.do("mark-submission-failed", async () => {
         await sessionObject.updateFax(
-          createFailedFax(faxParams.document.pageCount)
+          createFailedFax(faxParams.document.pageCount),
+          attempt
         )
 
         return null
@@ -135,7 +131,8 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
     // provider state and this Workflow could incorrectly overwrite it later.
     await step.do("mark-queued", async () => {
       await sessionObject.updateFax(
-        createInitialFax(FAX_STATUS.QUEUED, faxParams.document.pageCount)
+        createQueuedFax(faxParams.document.pageCount),
+        attempt
       )
 
       return null
@@ -145,6 +142,7 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
       await new FaxTransmissionRepository(this.env.APP_DATABASE).create({
         transactionId: providerSubmission.transactionId,
         sessionId,
+        deliveryAttempt: attempt,
         pagesSubmitted: faxParams.document.pageCount,
         pagesSent: 0,
         attemptsMade: 0,
@@ -170,13 +168,10 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
 // HELPERS
 // -----------------------------------------------------------------------------
 
-/** Creates the two pre-provider session states with identical page counters. */
-function createInitialFax(
-  status: typeof FAX_STATUS.PREPARING | typeof FAX_STATUS.QUEUED,
-  pagesSubmitted: number
-): FaxSessionFax {
+/** Creates the accepted-by-provider state that precedes the first poll. */
+function createQueuedFax(pagesSubmitted: number): FaxSessionFax {
   return {
-    status,
+    status: FAX_STATUS.QUEUED,
     pagesSent: 0,
     pagesSubmitted,
     error: null,

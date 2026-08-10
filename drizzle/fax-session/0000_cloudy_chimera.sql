@@ -1,4 +1,3 @@
-DROP TABLE `fax_session`;--> statement-breakpoint
 CREATE TABLE `fax_session` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`document_object_key` text,
@@ -14,6 +13,7 @@ CREATE TABLE `fax_session` (
 	`fax_pages_sent` integer,
 	`fax_pages_submitted` integer,
 	`fax_error` text,
+	`delivery_attempt` integer DEFAULT 0 NOT NULL,
 	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	CONSTRAINT "fax_session_singleton" CHECK("fax_session"."id" = 1),
 	CONSTRAINT "fax_session_quote_currency" CHECK("fax_session"."quote_currency" IS NULL OR "fax_session"."quote_currency" = 'ILS'),
@@ -22,5 +22,6 @@ CREATE TABLE `fax_session` (
 	CONSTRAINT "fax_session_fax_pages_sent" CHECK("fax_session"."fax_pages_sent" IS NULL OR "fax_session"."fax_pages_sent" >= 0),
 	CONSTRAINT "fax_session_fax_pages_submitted" CHECK("fax_session"."fax_pages_submitted" IS NULL OR "fax_session"."fax_pages_submitted" >= 0),
 	CONSTRAINT "fax_session_fax_page_progress" CHECK("fax_session"."fax_pages_sent" IS NULL OR "fax_session"."fax_pages_submitted" IS NULL OR "fax_session"."fax_pages_sent" <= "fax_session"."fax_pages_submitted"),
+	CONSTRAINT "fax_session_delivery_attempt" CHECK("fax_session"."delivery_attempt" >= 0),
 	CONSTRAINT "fax_session_fax_error" CHECK("fax_session"."fax_error" IS NULL OR "fax_session"."fax_error" IN ('BUSY', 'CALL_REJECTED', 'CANCELED', 'CONNECTION_FAILED', 'DELIVERY_UNCONFIRMED', 'DESTINATION_UNAVAILABLE', 'DOCUMENT_PROCESSING_FAILED', 'FAX_INCOMPATIBLE', 'INVALID_NUMBER', 'NO_ANSWER', 'PARTIAL_TRANSMISSION', 'ROUTE_UNAVAILABLE', 'SERVICE_UNAVAILABLE', 'TRANSMISSION_INTERRUPTED', 'UNKNOWN_FAILURE', 'VOICE_ANSWERED'))
 );

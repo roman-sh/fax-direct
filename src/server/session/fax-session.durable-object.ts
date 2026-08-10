@@ -17,7 +17,10 @@ import {
   type FaxSessionQuote,
   type FaxSessionRecipient,
 } from "@/shared/session/fax-session.types"
-import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
+import {
+  FAX_STATUS,
+  PAYMENT_STATUS,
+} from "@/shared/session/fax-session-status"
 import { isWebSocketUpgradeRequest } from "@/shared/websocket/is-websocket-upgrade-request"
 
 const LEGACY_SESSION_STORAGE_KEY = "session"
@@ -337,18 +340,104 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   }
 
   /**
+   * Atomically claims the next delivery attempt for a paid session, or returns
+   * null when no attempt may start. The check and the `preparing` flip commit
+   * in this one single-threaded call — before any Workflow instance exists —
+   * so concurrent requests cannot start two deliveries. The attempt number
+   * suffixes the Workflow instance id, keeping instance creation idempotent
+   * per attempt.
+   *
+   * A session already `preparing` returns its current attempt unchanged: the
+   * caller re-creates the same deterministic instance, which no-ops when it
+   * exists and heals the claim when instance creation previously failed. Any
+   * in-flight or delivered status returns null — those states are written by
+   * the running instance itself, so there is nothing to start or heal.
+   */
+  async beginDelivery(): Promise<{
+    attempt: number
+    session: FaxSessionData
+  } | null> {
+    const row = this.db
+      .select()
+      .from(faxSessionTable)
+      .where(eq(faxSessionTable.id, SESSION_ROW_ID))
+      .get()
+
+    if (!row) {
+      throw new Error("Fax session row is missing.")
+    }
+
+    const document = documentFromRow(row)
+
+    if (
+      row.paymentStatus !== PAYMENT_STATUS.PAID ||
+      document === null ||
+      recipientFromRow(row) === null
+    ) {
+      return null
+    }
+
+    if (row.faxStatus === FAX_STATUS.PREPARING) {
+      return {
+        attempt: row.deliveryAttempt,
+        session: await this.getSession(),
+      }
+    }
+
+    if (
+      row.faxStatus !== null &&
+      row.faxStatus !== FAX_STATUS.FAILED
+    ) {
+      return null
+    }
+
+    const attempt = row.deliveryAttempt + 1
+    const session = await this.updateSession(() => {
+      this.db
+        .update(faxSessionTable)
+        .set({
+          deliveryAttempt: attempt,
+          faxStatus: FAX_STATUS.PREPARING,
+          faxPagesSent: 0,
+          // The current document decides the counters, so a document replaced
+          // after a failure is reflected in the next attempt's progress.
+          faxPagesSubmitted: document.pageCount,
+          faxError: null,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(faxSessionTable.id, SESSION_ROW_ID))
+        .run()
+
+      return true
+    })
+
+    return {
+      attempt,
+      session,
+    }
+  }
+
+  /**
    * Persists fax progress that has already been determined by the owning
-   * orchestration component. The delivery Workflow supplies `preparing` and
-   * `queued`; the future InterFAX poller supplies the remaining provider-driven
-   * states. This Durable Object stores the public state but does not interpret
-   * provider codes itself.
+   * orchestration component. The delivery Workflow supplies `queued` and the
+   * submission failure; the InterFAX poller supplies the remaining
+   * provider-driven states. This Durable Object stores the public state but
+   * does not interpret provider codes itself.
+   *
+   * Every write names the delivery attempt it belongs to and lands only while
+   * that attempt is still the current one. A slow provider result for a
+   * superseded attempt — e.g. a poll that was in flight when the customer
+   * started a retry — returns null instead of overwriting the newer attempt.
    *
    * `updateSession()` reads the resulting authoritative session and broadcasts
    * it through the existing WebSocket path.
    */
-  async updateFax(fax: FaxSessionFax): Promise<FaxSessionData> {
-    return this.updateSession(() => {
-      this.db
+  async updateFax(
+    fax: FaxSessionFax,
+    attempt: number
+  ): Promise<FaxSessionData | null> {
+    const session = await this.updateSession(() => {
+      const updated = this.db
         .update(faxSessionTable)
         .set({
           faxStatus: fax.status,
@@ -357,11 +446,27 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
           faxError: fax.error,
           updatedAt: sql`CURRENT_TIMESTAMP`,
         })
-        .where(eq(faxSessionTable.id, SESSION_ROW_ID))
-        .run()
+        .where(
+          and(
+            eq(faxSessionTable.id, SESSION_ROW_ID),
+            eq(faxSessionTable.deliveryAttempt, attempt)
+          )
+        )
+        .returning({ id: faxSessionTable.id })
+        .get()
 
-      return true
+      return updated !== undefined
     })
+
+    if (!session) {
+      console.warn("fax_stale_attempt_write_dropped", {
+        sessionId: this.sessionName,
+        attempt,
+        faxStatus: fax.status,
+      })
+    }
+
+    return session
   }
 
   /**

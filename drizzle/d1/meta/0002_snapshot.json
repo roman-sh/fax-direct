@@ -1,0 +1,146 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "53ce6b6d-258c-40a1-b5c6-c5f19b1f3d30",
+  "prevId": "15004845-071e-4612-9373-2c6b56600c47",
+  "tables": {
+    "fax_transmissions": {
+      "name": "fax_transmissions",
+      "columns": {
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "delivery_attempt": {
+          "name": "delivery_attempt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "provider_status": {
+          "name": "provider_status",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pages_submitted": {
+          "name": "pages_submitted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pages_sent": {
+          "name": "pages_sent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attempts_made": {
+          "name": "attempts_made",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attempts_total": {
+          "name": "attempts_total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "resolution": {
+          "name": "resolution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "fax_transmissions_provider_status_idx": {
+          "name": "fax_transmissions_provider_status_idx",
+          "columns": [
+            "provider_status"
+          ],
+          "isUnique": false
+        },
+        "fax_transmissions_session_id_idx": {
+          "name": "fax_transmissions_session_id_idx",
+          "columns": [
+            "session_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "fax_transmissions_resolution": {
+          "name": "fax_transmissions_resolution",
+          "value": "\"fax_transmissions\".\"resolution\" IN ('Fine', 'Standard')"
+        },
+        "fax_transmissions_page_counts": {
+          "name": "fax_transmissions_page_counts",
+          "value": "\"fax_transmissions\".\"pages_submitted\" >= 0 AND \"fax_transmissions\".\"pages_sent\" >= 0"
+        },
+        "fax_transmissions_attempt_counts": {
+          "name": "fax_transmissions_attempt_counts",
+          "value": "\"fax_transmissions\".\"attempts_made\" >= 0 AND \"fax_transmissions\".\"attempts_total\" >= 0"
+        },
+        "fax_transmissions_delivery_attempt": {
+          "name": "fax_transmissions_delivery_attempt",
+          "value": "\"fax_transmissions\".\"delivery_attempt\" >= 1"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
