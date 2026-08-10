@@ -151,11 +151,32 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     })
   }
 
-  /** Stores the verified R2 document and invalidates any previous quote. */
+  /**
+   * Stores the verified R2 document and re-prices the session. The quote is a
+   * function of the document and the recipient together, so it is written here
+   * whenever a recipient already exists and left untouched when one does not.
+   * Replacing the document therefore re-prices rather than clearing, which
+   * matters when the flow returns to this step: mid-flow, because the customer
+   * reopened the document card; after payment, because a failed fax offered to
+   * replace an unusable PDF.
+   */
   async setDocument(
-    document: FaxSessionDocument
+    document: FaxSessionDocument,
+    quote: FaxSessionQuote
   ): Promise<FaxSessionData> {
     return this.updateSession(() => {
+      const hasRecipient =
+        this.db
+          .select({ id: faxSessionTable.id })
+          .from(faxSessionTable)
+          .where(
+            and(
+              eq(faxSessionTable.id, SESSION_ROW_ID),
+              isNotNull(faxSessionTable.recipientE164)
+            )
+          )
+          .get() !== undefined
+
       this.db
         .update(faxSessionTable)
         .set({
@@ -163,8 +184,9 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
           documentOriginalName: document.originalName,
           documentPageCount: document.pageCount,
           documentSizeBytes: document.sizeBytes,
-          quoteAmount: null,
-          quoteCurrency: null,
+          ...(hasRecipient
+            ? { quoteAmount: quote.amount, quoteCurrency: quote.currency }
+            : {}),
           updatedAt: sql`CURRENT_TIMESTAMP`,
         })
         .where(eq(faxSessionTable.id, SESSION_ROW_ID))
@@ -175,10 +197,12 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   }
 
   /**
-   * Saves payment-ready recipient and quote data only after a document exists.
-   * Returns null when the session is not ready for this transition.
+   * Stores the recipient and re-prices the session. The quote is written in the
+   * same statement because the guard below already requires a document, so both
+   * inputs are present whenever this succeeds. Returns null when no document
+   * exists yet, which is the same rule `setDocument` applies from its side.
    */
-  async setRecipientAndQuote(
+  async setRecipient(
     recipient: FaxSessionRecipient,
     quote: FaxSessionQuote
   ): Promise<FaxSessionData | null> {

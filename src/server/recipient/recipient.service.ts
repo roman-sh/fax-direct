@@ -45,7 +45,7 @@ export async function saveFaxRecipient({
   const quote = calculateFaxQuote(config)
   const saved = await getCloudflareContext()
     .env.FAX_SESSIONS.getByName(sessionId)
-    .setRecipientAndQuote(recipient, quote)
+    .setRecipient(recipient, quote)
 
   if (!saved) {
     throw new RecipientServiceError("DOCUMENT_REQUIRED")

@@ -12,6 +12,7 @@ import {
   getMarketConfig,
   MarketConfigError,
 } from "@/server/config/market-config.service"
+import { calculateFaxQuote } from "@/server/quote/quote.service"
 import { getOrCreateFaxBrowserSession } from "@/server/session/fax-browser-session.service"
 import {
   inspectPdfFile,
@@ -131,7 +132,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const session = await env.FAX_SESSIONS
       .getByName(sessionId)
-      .setDocument(document)
+      .setDocument(document, calculateFaxQuote(config))
 
     return Response.json(session, {
       headers: {
