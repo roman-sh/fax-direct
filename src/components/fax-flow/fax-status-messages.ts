@@ -58,36 +58,30 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
       delivered: "הפקס נמסר בהצלחה.",
     },
     failure: {
-      BUSY: "מספר הפקס תפוס כרגע. אפשר לנסות שוב מאוחר יותר.",
-      NO_ANSWER: "מספר הפקס לא ענה. בדקו את המספר או נסו שוב מאוחר יותר.",
+      BUSY: "הקו תפוס. נסו שוב מאוחר יותר.",
+      NO_ANSWER: "אין מענה במספר. בדקו את המספר ונסו שוב.",
       VOICE_ANSWERED:
-        "השיחה נענתה, אך לא זוהה מכשיר פקס. בדקו את המספר לפני ניסיון נוסף.",
-      INVALID_NUMBER: "מספר הפקס אינו תקין. בדקו את המספר ונסו שוב.",
+        "השיחה נענתה, אך לא זוהה מכשיר פקס. בדקו את המספר.",
+      INVALID_NUMBER: "מספר הפקס אינו תקין. בדקו את המספר ונסו שנית.",
       DESTINATION_UNAVAILABLE:
-        "לא ניתן לחייג למספר הפקס. בדקו שהמספר פעיל ותקין.",
-      CALL_REJECTED:
-        "היעד דחה את השיחה. בדקו את המספר או נסו שוב מאוחר יותר.",
-      ROUTE_UNAVAILABLE:
-        "לא ניתן כרגע לנתב את השליחה למספר הזה. בדקו את המספר או נסו שוב מאוחר יותר.",
-      FAX_INCOMPATIBLE:
-        "נוצר קשר עם מכשיר הפקס, אך התקשורת איתו נכשלה. אפשר לנסות שוב.",
+        "המספר אינו זמין. בדקו את המספר ונסו שנית.",
+      CALL_REJECTED: "השיחה נדחתה. בדקו את המספר ונסו שוב.",
+      ROUTE_UNAVAILABLE: "הניתוב נכשל. נסו שוב מאוחר יותר.",
+      FAX_INCOMPATIBLE: "התקשורת נכשלה. בדקו את המספר ונסו שנית.",
       TRANSMISSION_INTERRUPTED:
-        "החיבור נותק לפני שהשליחה הושלמה. אפשר לנסות שוב.",
-      CONNECTION_FAILED:
-        "לא הצלחנו ליצור קשר עם מספר הפקס. בדקו את המספר או נסו שוב מאוחר יותר.",
+        "השליחה נקטעה לפני שהסתיימה. נסו שוב.",
+      CONNECTION_FAILED: "חיבור לפקס נכשל. בדקו את המספר ונסו שוב.",
       DOCUMENT_PROCESSING_FAILED:
-        "לא הצלחנו להכין את המסמך לשליחה. נסו להעלות קובץ PDF אחר.",
-      CANCELED: "שליחת הפקס בוטלה.",
-      SERVICE_UNAVAILABLE:
-        "לא הצלחנו לשלוח את הפקס עקב תקלה זמנית בשירות. נסו שוב מאוחר יותר.",
-      UNKNOWN_FAILURE:
-        "שליחת הפקס נכשלה מסיבה לא ידועה. בדקו את המספר או נסו שוב מאוחר יותר.",
+        "הכנת המסמך נכשלה. העלו קובץ PDF אחר.",
+      CANCELED: "השליחה בוטלה. נסו שוב מאוחר יותר.",
+      SERVICE_UNAVAILABLE: "השירות אינו זמין כעת. נסו שוב מאוחר יותר.",
+      UNKNOWN_FAILURE: "השליחה נכשלה. בדקו את המספר ונסו שוב.",
       DELIVERY_UNCONFIRMED:
-        "כל עמודי המסמך שודרו, אך לא התקבל אישור מסירה סופי. מומלץ לבדוק מול הנמען לפני ניסיון נוסף.",
+        "כל העמודים הועברו, אך אישור מסירה לא התקבל. ייתכן שהנמען כבר קיבל את המסמך כולו; בדקו איתו לפני שליחה מחדש.",
       PARTIAL_TRANSMISSION: `{pagesSent, plural,
-        =1 {השליחה נכשלה לאחר שנשלח עמוד אחד מתוך {pagesSubmitted}. ייתכן שחלק מהמסמך התקבל.}
-        =2 {השליחה נכשלה לאחר שנשלחו שני עמודים מתוך {pagesSubmitted}. ייתכן שחלק מהמסמך התקבל.}
-        other {השליחה נכשלה לאחר שנשלחו # מתוך {pagesSubmitted} עמודים. ייתכן שחלק מהמסמך התקבל.}
+        one {השליחה נכשלה לאחר שנשלח עמוד אחד מתוך {pagesSubmitted}. ייתכן שהנמען קיבל חלק מהמסמך; בדקו איתו לפני שליחה מחדש.}
+        two {השליחה נכשלה לאחר שנשלחו שני עמודים מתוך {pagesSubmitted}. ייתכן שהנמען קיבל חלק מהמסמך; בדקו איתו לפני שליחה מחדש.}
+        other {השליחה נכשלה לאחר שנשלחו {pagesSent} מתוך {pagesSubmitted} עמודים. ייתכן שהנמען קיבל חלק מהמסמך; בדקו איתו לפני שליחה מחדש.}
       }`,
     },
   },
@@ -108,36 +102,33 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
       delivered: "The fax was delivered successfully.",
     },
     failure: {
-      BUSY: "The fax number is busy. Try again later.",
-      NO_ANSWER:
-        "The fax number did not answer. Check the number or try again later.",
+      BUSY: "The line is busy. Try again later.",
+      NO_ANSWER: "No answer at the number. Check the number and try again.",
       VOICE_ANSWERED:
-        "The call was answered, but no fax machine was detected. Check the number before retrying.",
-      INVALID_NUMBER: "The fax number is invalid. Check it and try again.",
+        "The call was answered, but no fax machine was detected. Check the number.",
+      INVALID_NUMBER:
+        "The fax number is not valid. Check the number and try again.",
       DESTINATION_UNAVAILABLE:
-        "The fax number cannot be reached. Check that it is active and correct.",
-      CALL_REJECTED:
-        "The destination rejected the call. Check the number or try again later.",
-      ROUTE_UNAVAILABLE:
-        "Delivery cannot currently be routed to this number. Check it or try again later.",
+        "The number is unavailable. Check the number and try again.",
+      CALL_REJECTED: "The call was rejected. Check the number and try again.",
+      ROUTE_UNAVAILABLE: "Routing failed. Try again later.",
       FAX_INCOMPATIBLE:
-        "A fax machine answered, but fax communication failed. You can try again.",
+        "The fax communication failed. Check the number and try again.",
       TRANSMISSION_INTERRUPTED:
-        "The connection ended before delivery was complete. You can try again.",
+        "The delivery was cut off before it finished. Try again.",
       CONNECTION_FAILED:
-        "We could not connect to the fax number. Check it or try again later.",
+        "Connecting to the fax failed. Check the number and try again.",
       DOCUMENT_PROCESSING_FAILED:
-        "We could not prepare the document. Try uploading a different PDF.",
-      CANCELED: "Fax delivery was canceled.",
+        "Preparing the document failed. Upload a different PDF file.",
+      CANCELED: "The delivery was cancelled. Try again later.",
       SERVICE_UNAVAILABLE:
-        "A temporary service problem prevented delivery. Try again later.",
-      UNKNOWN_FAILURE:
-        "Fax delivery failed for an unknown reason. Check the number or try again later.",
+        "The service is unavailable right now. Try again later.",
+      UNKNOWN_FAILURE: "The delivery failed. Check the number and try again.",
       DELIVERY_UNCONFIRMED:
-        "All pages were transmitted, but final delivery was not confirmed. Check with the recipient before retrying.",
+        "All pages were transmitted, but no delivery confirmation arrived. The recipient may already have the whole document; check with them before resending.",
       PARTIAL_TRANSMISSION: `{pagesSent, plural,
-        one {Delivery failed after # page was transmitted out of {pagesSubmitted}. The recipient may have received part of the document.}
-        other {Delivery failed after # of {pagesSubmitted} pages were transmitted. The recipient may have received part of the document.}
+        one {The delivery failed after one page of {pagesSubmitted} was sent. The recipient may have received part of the document; check with them before resending.}
+        other {The delivery failed after {pagesSent} of {pagesSubmitted} pages were sent. The recipient may have received part of the document; check with them before resending.}
       }`,
     },
   },

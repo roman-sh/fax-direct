@@ -55,9 +55,9 @@ Remaining:
       delivered, or failed status card.
 - [ ] Format Hebrew progress and semantic failure messages on the client.
 - [ ] Show page progress separately from final delivery confirmation.
-- [ ] Offer controls appropriate to the failure: edit number, edit document,
+- [x] Offer controls appropriate to the failure: edit number, edit document,
       or manually retry.
-- [ ] Start every manual retry as a new Workflow and InterFAX transaction while
+- [x] Start every manual retry as a new Workflow and InterFAX transaction while
       retaining the same paid session.
 - [ ] Add a “send another fax” action that creates a fresh browser session.
 - [ ] Later, reconcile ambiguous submission failures through InterFAX reference

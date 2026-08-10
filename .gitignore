@@ -51,3 +51,6 @@ next-env.d.ts
 
 
 !.dev.vars.example
+
+# editor scratch
+.cursor

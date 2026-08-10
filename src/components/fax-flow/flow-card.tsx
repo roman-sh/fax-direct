@@ -134,21 +134,42 @@ export function CardHeading({
   step,
   title,
   description,
+  descriptionTone = "muted",
+  actions,
 }: {
   step: FaxStep
   title: string
   description: string
+  /** `destructive` carries a failure message in place of the usual blurb. */
+  descriptionTone?: "muted" | "destructive"
+  /**
+   * Trailing-edge controls. The card body is a fixed-height box that cannot
+   * scroll, so terminal-state actions live here rather than below the content,
+   * where they would compete with it for a height that does not exist.
+   */
+  actions?: ReactNode
 }) {
   return (
     <CardHeader className="border-b border-border px-7 py-5">
-      <div className="flex items-start gap-3">
-        <span className="font-mono text-xs font-medium text-brand">
-          0{step}
-        </span>
-        <div className="min-w-0">
-          <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-          <CardDescription className="mt-1">{description}</CardDescription>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="font-mono text-xs font-medium text-brand">
+            0{step}
+          </span>
+          <div className="min-w-0">
+            <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+            <CardDescription
+              className={cn(
+                "mt-1",
+                descriptionTone === "destructive" && "text-destructive"
+              )}
+            >
+              {description}
+            </CardDescription>
+          </div>
         </div>
+
+        {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
       </div>
     </CardHeader>
   )
