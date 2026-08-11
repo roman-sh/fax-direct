@@ -88,6 +88,14 @@ function HydratedFaxFlow({
   // ever disagrees with an existing fax record.
   const isDeliveryPhase =
     session.payment?.status === PAYMENT_STATUS.PAID || session.fax !== null
+  // A paid session with no delivery and a non-zero attempt count can only mean
+  // the customer answered a failure by editing the document or the number,
+  // which cleared it. The summary returns so they can review what changed and
+  // send again; nothing is charged, because the session is already paid.
+  const isAwaitingResend =
+    session.payment?.status === PAYMENT_STATUS.PAID &&
+    session.fax === null &&
+    session.deliveryAttempt > 0
   // A final failure reopens editing: the customer may replace the document or
   // the fax number before retrying within the same paid session.
   const isDeliveryLocked =
@@ -167,6 +175,17 @@ function HydratedFaxFlow({
   }
 
   async function handleRecipientContinue() {
+    // Passing through this card is not an edit. Saving an unchanged number
+    // would retire a failed delivery that the customer has not answered,
+    // discarding the failure they came back to read.
+    if (
+      session.recipient &&
+      recipient.trim() === session.recipient.displayValue
+    ) {
+      setActiveStep(3)
+      return
+    }
+
     const updatedSession = await recipientSave.save(recipient)
 
     if (updatedSession) {
@@ -239,9 +258,19 @@ function HydratedFaxFlow({
         <FlowCard
           step={3}
           activeStep={activeStep}
-          title={isDeliveryPhase ? "סטטוס השליחה" : "תשלום ושליחה"}
+          title={
+            isDeliveryPhase && !isAwaitingResend
+              ? "סטטוס השליחה"
+              : isAwaitingResend
+                ? "שליחה חוזרת"
+                : "תשלום ושליחה"
+          }
           summary={
-            isDeliveryPhase ? "סטטוס השליחה" : formatFaxQuote(session.quote)
+            isDeliveryPhase && !isAwaitingResend
+              ? "סטטוס השליחה"
+              : isAwaitingResend
+                ? "מוכן לשליחה"
+                : formatFaxQuote(session.quote)
           }
           icon={
             isDeliveryPhase ? (
@@ -252,7 +281,7 @@ function HydratedFaxFlow({
           }
           onOpen={setActiveStep}
         >
-          {isDeliveryPhase ? (
+          {isDeliveryPhase && !isAwaitingResend ? (
             <FaxDeliveryStatusStep
               fax={session.fax}
               fileSummary={session.document?.originalName ?? fileSummary}
@@ -276,8 +305,16 @@ function HydratedFaxFlow({
               payment={session.payment}
               paymentStart={payment.state}
               quote={session.quote}
+              isResend={isAwaitingResend}
+              isSending={faxRetry.state.status === "starting"}
+              sendError={
+                faxRetry.state.status === "error"
+                  ? faxRetry.state.message
+                  : null
+              }
               onBack={() => setActiveStep(2)}
               onStartPayment={handleStartPayment}
+              onSend={() => void handleFaxRetry()}
             />
           )}
         </FlowCard>

@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Lock } from "lucide-react"
+import { ArrowRight, CheckCircle2, Lock, Send } from "lucide-react"
 
 import { CardHeading } from "@/components/fax-flow/flow-card"
 import type { PaymentStartState } from "@/components/fax-flow/use-payment"
@@ -18,8 +18,18 @@ type PaymentStepProps = {
   payment: FaxSessionPayment | null
   paymentStart: PaymentStartState
   quote: FaxSessionQuote | null
+  /**
+   * A session that already paid and has no delivery is being resent after a
+   * failure was answered by editing the document or the number. The summary is
+   * the same review it was the first time; only the commitment differs, so the
+   * button sends instead of charging.
+   */
+  isResend: boolean
+  isSending: boolean
+  sendError: string | null
   onBack: () => void
   onStartPayment: () => void
+  onSend: () => void
 }
 
 export function PaymentStep({
@@ -29,8 +39,12 @@ export function PaymentStep({
   payment,
   paymentStart,
   quote,
+  isResend,
+  isSending,
+  sendError,
   onBack,
   onStartPayment,
+  onSend,
 }: PaymentStepProps) {
   const isStarting = paymentStart.status === "starting"
   const isPending = payment?.status === PAYMENT_STATUS.PENDING
@@ -57,15 +71,26 @@ export function PaymentStep({
             label="עמודים"
             value={pageCount === null ? "—" : String(pageCount)}
           />
+          {/* A resend is already paid for, so quoting a price again would read
+              as a second charge. The line states what was settled instead. */}
           <div className="mt-1 flex items-baseline gap-3 border-t border-border pt-4">
-            <dt className="font-medium">סה״כ לתשלום</dt>
+            <dt className="font-medium">
+              {isResend ? "התשלום" : "סה״כ לתשלום"}
+            </dt>
             <span
               aria-hidden="true"
               className="flex-1 border-b border-dotted border-border"
             />
-            <dd dir="ltr" className="text-2xl font-bold tabular-nums">
-              {formatFaxQuote(quote)}
-            </dd>
+            {isResend ? (
+              <dd className="flex items-center gap-2 text-base font-semibold text-success">
+                <CheckCircle2 className="size-5" />
+                שולם
+              </dd>
+            ) : (
+              <dd dir="ltr" className="text-2xl font-bold tabular-nums">
+                {formatFaxQuote(quote)}
+              </dd>
+            )}
           </div>
         </dl>
 
@@ -81,7 +106,27 @@ export function PaymentStep({
             חזרה
           </Button>
           <div className="flex flex-col items-center gap-2">
-            {isPaid ? (
+            {isResend ? (
+              <Button
+                type="button"
+                size="lg"
+                disabled={isSending}
+                onClick={onSend}
+                className="min-w-40"
+              >
+                {isSending ? (
+                  <>
+                    <Spinner data-icon="inline-start" />
+                    שולחים…
+                  </>
+                ) : (
+                  <>
+                    שליחת הפקס
+                    <Send data-icon="inline-end" />
+                  </>
+                )}
+              </Button>
+            ) : isPaid ? (
               <div className="flex min-w-40 items-center justify-center gap-2 text-base font-semibold text-success">
                 <CheckCircle2 className="size-5" />
                 התשלום התקבל
@@ -107,6 +152,11 @@ export function PaymentStep({
                 )}
               </Button>
             )}
+            {sendError ? (
+              <p role="alert" className="max-w-64 text-center text-sm text-destructive">
+                {sendError}
+              </p>
+            ) : null}
             {paymentStart.status === "error" ? (
               <span
                 role="alert"

@@ -69,6 +69,14 @@ export type FaxSessionData = {
   payment: FaxSessionPayment | null
   quote: FaxSessionQuote | null
   recipient: FaxSessionRecipient | null
+  /**
+   * How many deliveries this session has started. Zero until the first one is
+   * claimed, and incremented in the same write that sets `preparing`, so a
+   * null `fax` alongside a non-zero count can only mean an attempt was cleared
+   * by editing the document or the recipient after a failure — the one state
+   * that asks the customer to send again rather than to pay.
+   */
+  deliveryAttempt: number
 }
 
 export const EMPTY_FAX_SESSION_DATA: FaxSessionData = {
@@ -77,4 +85,5 @@ export const EMPTY_FAX_SESSION_DATA: FaxSessionData = {
   payment: null,
   quote: null,
   recipient: null,
+  deliveryAttempt: 0,
 }

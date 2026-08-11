@@ -95,6 +95,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
       payment: paymentFromRow(row),
       quote: quoteFromRow(row),
       recipient: recipientFromRow(row),
+      deliveryAttempt: row.deliveryAttempt,
     }
   }
 
@@ -155,6 +156,34 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   }
 
   /**
+   * Columns that retire a finally failed delivery, or none when there is
+   * nothing to retire. Editing the document or the recipient answers the
+   * failure, so leaving the old result on screen would keep complaining about
+   * something the customer has already corrected. The attempt counter is
+   * deliberately untouched: it still numbers the next Workflow instance, and a
+   * null fax beside a non-zero count is what tells the card to offer sending
+   * again rather than paying again.
+   */
+  private clearFailedDelivery(): Partial<FaxSessionRow> {
+    const row = this.db
+      .select({ faxStatus: faxSessionTable.faxStatus })
+      .from(faxSessionTable)
+      .where(eq(faxSessionTable.id, SESSION_ROW_ID))
+      .get()
+
+    if (row?.faxStatus !== FAX_STATUS.FAILED) {
+      return {}
+    }
+
+    return {
+      faxStatus: null,
+      faxPagesSent: 0,
+      faxPagesSubmitted: 0,
+      faxError: null,
+    }
+  }
+
+  /**
    * Stores the verified R2 document and re-prices the session. The quote is a
    * function of the document and the recipient together, so it is written here
    * whenever a recipient already exists and left untouched when one does not.
@@ -190,6 +219,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
           ...(hasRecipient
             ? { quoteAmount: quote.amount, quoteCurrency: quote.currency }
             : {}),
+          ...this.clearFailedDelivery(),
           updatedAt: sql`CURRENT_TIMESTAMP`,
         })
         .where(eq(faxSessionTable.id, SESSION_ROW_ID))
@@ -217,6 +247,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
           quoteCurrency: quote.currency,
           recipientDisplayValue: recipient.displayValue,
           recipientE164: recipient.e164,
+          ...this.clearFailedDelivery(),
           updatedAt: sql`CURRENT_TIMESTAMP`,
         })
         .where(
