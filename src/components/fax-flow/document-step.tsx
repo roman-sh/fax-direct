@@ -51,7 +51,6 @@ export function DocumentStep({
   return (
     <>
       <CardHeading
-        step={1}
         title="בחירת המסמך"
         description="בחרו את קובץ ה־PDF שתרצו לשלוח."
       />

@@ -1,10 +1,12 @@
 "use client"
 
-import { Send } from "lucide-react"
+import { FileText, Phone, Send } from "lucide-react"
 
 import { PreviewCase, PreviewPage, useLocalStep } from "@/app/dev/_preview"
+import { DocumentStep } from "@/components/fax-flow/document-step"
 import { FaxDeliveryStatusStep } from "@/components/fax-flow/fax-delivery-status-step"
 import { FlowCard } from "@/components/fax-flow/flow-card"
+import { RecipientStep } from "@/components/fax-flow/recipient-step"
 import { FAX_STATUS } from "@/shared/session/fax-session-status"
 import type {
   FaxFailureSemanticCode,
@@ -18,6 +20,13 @@ import type {
  * message, the longest, both emphasis rules, and the two codes that offer no
  * emphasis at all.
  */
+const DOCUMENT = {
+  objectKey: "PREVIEW-DELIVERY",
+  originalName: "two_pages.pdf",
+  pageCount: 2,
+  sizeBytes: 399873,
+}
+
 const PROGRESS_CASES: {
   label: string
   note: string
@@ -138,30 +147,76 @@ export default function DeliveryPreview() {
   )
 }
 
+/**
+ * The status card with the two collapsed strips beside it, exactly as the real
+ * sheet renders it. Card 3 used to stand alone here, which made the open card
+ * about 104px wider than it ever is in production at the same viewport — wide
+ * enough to hide a heading that could not fit its own title, and the reason
+ * that bug had to be found on the deployed site instead of on this page.
+ */
 function StatusCard({ fax }: { fax: FaxSessionFax | null }) {
   const [activeStep, setActiveStep] = useLocalStep(3)
 
   return (
-    <FlowCard
-      step={3}
-      activeStep={activeStep}
-      title="סטטוס השליחה"
-      summary="סטטוס השליחה"
-      icon={<Send className="size-4" />}
-      onOpen={setActiveStep}
-    >
-      <FaxDeliveryStatusStep
-        fax={fax}
-        fileSummary="two_pages.pdf"
-        recipientSummary="077-4448706"
-        pageCount={2}
-        locale="he-IL"
-        retryState={{ status: "idle" }}
-        onRetry={() => {}}
-        onEditNumber={() => {}}
-        onEditDocument={() => {}}
-      />
-    </FlowCard>
+    <>
+      <FlowCard
+        step={1}
+        activeStep={activeStep}
+        title="המסמך לשליחה"
+        summary="two_pages.pdf"
+        icon={<FileText className="size-4" />}
+        onOpen={setActiveStep}
+      >
+        <DocumentStep
+          file={null}
+          storedDocument={DOCUMENT}
+          inspection={{ status: "empty" }}
+          upload={{ status: "ready" }}
+          maxFileBytes={10 * 1024 * 1024}
+          maxPages={10}
+          onSelectFile={() => {}}
+          onContinue={() => setActiveStep(2)}
+        />
+      </FlowCard>
+
+      <FlowCard
+        step={2}
+        activeStep={activeStep}
+        title="מספר הפקס"
+        summary="077-4448706"
+        icon={<Phone className="size-4" />}
+        onOpen={setActiveStep}
+      >
+        <RecipientStep
+          recipient="077-4448706"
+          save={{ status: "idle" }}
+          onRecipientChange={() => {}}
+          onBack={() => setActiveStep(1)}
+          onContinue={() => setActiveStep(3)}
+        />
+      </FlowCard>
+
+      <FlowCard
+        step={3}
+        activeStep={activeStep}
+        title="סטטוס השליחה"
+        summary="סטטוס השליחה"
+        icon={<Send className="size-4" />}
+        onOpen={setActiveStep}
+      >
+        <FaxDeliveryStatusStep
+          fax={fax}
+          fileSummary="two_pages.pdf"
+          recipientSummary="077-4448706"
+          pageCount={2}
+          locale="he-IL"
+          retryState={{ status: "idle" }}
+          onRetry={() => {}}
+          onEditNumber={() => setActiveStep(2)}
+          onEditDocument={() => setActiveStep(1)}
+        />
+      </FlowCard>
+    </>
   )
 }
 

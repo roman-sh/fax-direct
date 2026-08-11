@@ -347,7 +347,7 @@ function SessionStateCard({ children }: { children: ReactNode }) {
     >
       {/* Matching the stack's height keeps the page from resettling under the
           reader the moment the session arrives. */}
-      <Card className="flex h-[37.5rem] items-center justify-center gap-4 text-muted-foreground min-[28rem]:h-[31rem] lg:h-[27rem]">
+      <Card className="flex h-[37.5rem] items-center justify-center gap-4 text-muted-foreground min-[499px]:h-[31rem] lg:h-[27rem]">
         {children}
       </Card>
     </section>

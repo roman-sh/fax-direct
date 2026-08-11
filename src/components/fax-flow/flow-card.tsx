@@ -29,26 +29,41 @@ type FlowCardProps = {
  * exactly.
  *
  * The stack turns horizontal once the viewport can hold it, rather than at a
- * borrowed device breakpoint. Its width is the sum of what the parts need:
+ * borrowed device breakpoint. The binding constraint is the heading, not the
+ * body: the actions there are floated so the failure message can wrap around
+ * them, and a float is sized before anything flows past it, so the title gets
+ * only the remainder and has no way to ask for more. Three fixed widths have
+ * to fit on one line or the title wraps:
  *
- *   open card          21.00rem   summary rows, and a heading carrying both a
- *                                 message and up to two buttons
- *   two collapsed       6.50rem   2 × 3.25rem
- *   their overlap      -1.50rem   2 × -0.75rem
- *   page gutters        2.00rem   px-4 either side, the narrowest case
- *                      --------
- *   FLOW_STACK_MIN     28.00rem   ≈ 448px
+ *   title                130px   "סטטוס השליחה"
+ *   gap                   16px
+ *   widest button        180px   "עריכת מספר הפקס", the longest label
+ *                       ------
+ *   heading              326px
+ *   card padding          56px   px-7 either side
+ *   two collapsed        104px   2 × 3.25rem
+ *   their overlap        -24px   2 × -0.75rem
+ *   page gutters          32px   px-4 either side, the narrowest case
+ *                       ------
+ *   FLOW_STACK_MIN       494px   rounded up to 499
  *
- * Below that the open card would be squeezed past usefulness, so the stack
- * turns on its side: the strips run across the top and bottom and the open card
- * takes the height between them. The taller column height is that same open
- * card plus the two strips it now sits between, so the body keeps the room it
- * has in the horizontal layout instead of surrendering it to the strips.
- * Changing any figure above means recomputing the `min-[28rem]` variants here
- * and in the collapsed heights below.
+ * An earlier version derived this from the body wanting about 21rem and put it
+ * at 448px, which let the horizontal layout run down to widths where the
+ * heading could not work: the title wrapped beside the buttons and no
+ * arrangement of them could prevent it, because the three widths above simply
+ * did not fit. Stacking the buttons does not help — that makes the float
+ * taller, not narrower.
+ *
+ * Below the threshold the stack turns on its side: the strips run across the
+ * top and bottom, the open card takes the height between them, and the heading
+ * stops floating so the title has the full width. The taller column height is
+ * that same open card plus the two strips it now sits between, so the body
+ * keeps the room it has in the horizontal layout instead of surrendering it to
+ * the strips. Changing any figure above means recomputing the `min-[499px]`
+ * variants here and in the collapsed heights below.
  */
 export const FLOW_STACK_CLASS =
-  "flex h-[37.5rem] w-full flex-col items-stretch min-[28rem]:h-[31rem] min-[28rem]:flex-row min-[28rem]:items-start lg:h-[27rem]"
+  "flex h-[37.5rem] w-full flex-col items-stretch min-[499px]:h-[31rem] min-[499px]:flex-row min-[499px]:items-start lg:h-[27rem]"
 
 /**
  * Presents one stage of the fax flow. The active card expands while completed
@@ -91,18 +106,18 @@ export function FlowCard({
         // screens can spare more, but only in the horizontal layout, where the
         // measurement is width taken from the open card rather than height.
         "[--flow-card-collapsed:3.25rem] md:[--flow-card-collapsed:5rem]",
-        "flex ring-1 ring-foreground/12 min-[28rem]:h-full",
+        "flex ring-1 ring-foreground/12 min-[499px]:h-full",
         // Each card is tucked under the one before it by the same amount on
         // either axis, so the strips read as a stack rather than as a list.
         // The depth offsets do not carry over: across a row they are the stack
         // seen edge-on, but down a column they would only be uneven gaps.
-        step > 1 && "-mt-3 min-[28rem]:mt-0 min-[28rem]:-mr-3",
+        step > 1 && "-mt-3 min-[499px]:mt-0 min-[499px]:-mr-3",
         isActive &&
           "flex-1 shadow-[0_1px_2px_oklch(0.198_0.01_65/0.08),0_28px_64px_-30px_oklch(0.198_0.01_65/0.35)]",
         isComplete &&
-          "bg-card shadow-[0_12px_32px_-24px_oklch(0.198_0.01_65/0.35)] min-[28rem]:translate-y-2",
+          "bg-card shadow-[0_12px_32px_-24px_oklch(0.198_0.01_65/0.35)] min-[499px]:translate-y-2",
         state === "future" &&
-          "bg-[color-mix(in_oklch,var(--card),var(--muted)_35%)] shadow-[0_10px_26px_-24px_oklch(0.198_0.01_65/0.3)] min-[28rem]:translate-y-4"
+          "bg-[color-mix(in_oklch,var(--card),var(--muted)_35%)] shadow-[0_10px_26px_-24px_oklch(0.198_0.01_65/0.3)] min-[499px]:translate-y-4"
       )}
     >
       <div
@@ -122,7 +137,7 @@ export function FlowCard({
         disabled={!isComplete || locked}
         onClick={() => onOpen(step)}
         className={cn(
-          "absolute inset-0 flex flex-row items-center gap-3 overflow-hidden px-5 py-0 transition-opacity duration-150 min-[28rem]:w-full min-[28rem]:flex-col min-[28rem]:gap-2 min-[28rem]:px-1.5 min-[28rem]:py-4 md:gap-3 md:px-2 md:py-5",
+          "absolute inset-0 flex flex-row items-center gap-3 overflow-hidden px-5 py-0 transition-opacity duration-150 min-[499px]:w-full min-[499px]:flex-col min-[499px]:gap-2 min-[499px]:px-1.5 min-[499px]:py-4 md:gap-3 md:px-2 md:py-5",
           isActive
             ? "pointer-events-none opacity-0"
             : "pointer-events-auto opacity-100 delay-150",
@@ -155,7 +170,7 @@ export function FlowCard({
             width but nothing gives it the strip's height: an absolute child
             leaves its parent no content to be as tall as, and the parent
             collapses to nothing and clips the label away. */}
-        <span className="relative min-h-0 min-w-0 flex-1 self-stretch overflow-hidden min-[28rem]:w-full">
+        <span className="relative min-h-0 min-w-0 flex-1 self-stretch overflow-hidden min-[499px]:w-full">
           {/* Rotating the label leaves its layout box unrotated, so the box has
               to be sized by the parent and the text centred inside it. That
               holds lying down too, where the only change is that the text is
@@ -164,7 +179,7 @@ export function FlowCard({
           <span
             dir={isComplete ? "ltr" : "rtl"}
             className={cn(
-              "absolute top-1/2 left-1/2 block max-w-full -translate-x-1/2 -translate-y-1/2 truncate whitespace-nowrap min-[28rem]:max-w-72 min-[28rem]:-rotate-90",
+              "absolute top-1/2 left-1/2 block max-w-full -translate-x-1/2 -translate-y-1/2 truncate whitespace-nowrap min-[499px]:max-w-72 min-[499px]:-rotate-90",
               isComplete
                 ? "font-mono text-xs font-medium"
                 : "text-xs font-semibold"
@@ -181,13 +196,11 @@ export function FlowCard({
 }
 
 export function CardHeading({
-  step,
   title,
   description,
   descriptionTone = "muted",
   actions,
 }: {
-  step: FaxStep
   title: string
   description: string
   /** `destructive` carries a failure message in place of the usual blurb. */
@@ -212,29 +225,40 @@ export function CardHeading({
     // own grid: left alone it makes every child shrink to fit, so actions that
     // ask to span the heading silently cannot. It is inert above the
     // breakpoint, where the heading is a block again.
-    <CardHeader className="flex flex-col items-stretch border-b border-border px-7 py-5 min-[28rem]:block min-[28rem]:after:block min-[28rem]:after:clear-both min-[28rem]:after:content-['']">
-      {/* A float keeps its width whatever the text does, so two buttons abreast
-          leave the title too little room and wrap it. Stacking them narrows the
-          float enough for the title to hold one line. The query measures the
-          card rather than the viewport, because the open card's width depends
-          on the stack around it as much as on the screen.
+    <CardHeader className="flex flex-col items-stretch border-b border-border px-7 py-5 min-[499px]:block min-[499px]:after:block min-[499px]:after:clear-both min-[499px]:after:content-['']">
+      {/* A float takes its natural width and the text beside it gets whatever
+          is left, with no way to ask for more. So the float has two widths
+          worth having and nothing in between: wide enough for both buttons
+          abreast, or narrow enough for one, with the pair stacked. `min-w`
+          gives the second directly — the buttons keep `whitespace-nowrap`, so
+          min-content here is the wider label and not a hairline.
+
+          Capping it at the title's leftover instead was worse in a way that is
+          easy to miss: the title fits by construction, but the float then eats
+          every pixel the title does not, and the message wrapping past it is
+          left a ribbon. The message is the point of the heading; the buttons
+          are not.
+
+          The query measures the heading rather than the viewport, so no
+          formula relates the two, and 411px is the parts rather than a
+          calibration: 265 for both buttons and their gap, 16 for ms-4, 130 for
+          the title beside them.
 
           Once the stack stands the card up there is no width to share, and a
           float would only wrap the title around buttons that already span the
           card. So the heading becomes an ordinary column and the actions fall
           to the end of it, below the message they answer. */}
       {actions ? (
-        <div className="order-last mt-3 min-[28rem]:float-end min-[28rem]:mt-0 min-[28rem]:mb-1 min-[28rem]:ms-4">
+        <div className="order-last mt-3 min-[499px]:float-end min-[499px]:mt-0 min-[499px]:mb-1 min-[499px]:ms-4 min-[499px]:max-w-min min-[499px]:@[411px]/card-header:max-w-none">
           {actions}
         </div>
       ) : null}
 
-      <CardTitle className="text-lg font-semibold">
-        <span className="me-3 font-mono text-xs font-medium text-brand">
-          0{step}
-        </span>
-        {title}
-      </CardTitle>
+      {/* No step number here. The strips beside the open card already carry 1,
+          2 and 3, and turn into checkmarks as they complete, so a marker in the
+          heading repeated a position the stack was showing anyway — and it took
+          the width the title needs to stay on one line beside the actions. */}
+      <CardTitle className="text-lg font-semibold">{title}</CardTitle>
       <CardDescription
         className={cn(
           "mt-1",

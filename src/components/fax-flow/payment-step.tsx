@@ -53,7 +53,6 @@ export function PaymentStep({
   return (
     <>
       <CardHeading
-        step={3}
         title="אישור ותשלום"
         description={
           isPaid

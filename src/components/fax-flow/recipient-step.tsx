@@ -42,7 +42,6 @@ export function RecipientStep({
   return (
     <>
       <CardHeading
-        step={2}
         title="מספר הפקס של הנמען"
         description="הזינו מספר בישראל, כולל קידומת."
       />
