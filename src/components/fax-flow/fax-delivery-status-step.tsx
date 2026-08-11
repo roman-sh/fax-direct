@@ -38,6 +38,13 @@ type FaxDeliveryStatusStepProps = {
   recipientSummary: string
   pageCount: number | null
   locale: FaxUiLocale
+  /**
+   * Counts session snapshots arriving over the WebSocket. Every change plays
+   * one sweep across the card, so the count matters only in that it differs
+   * from the last one — two consecutive polls often carry identical state, and
+   * the arrival is the thing being shown, not the contents.
+   */
+  beat: number
   retryState: FaxRetryState
   isStartingNewFax: boolean
   onRetry: () => void
@@ -65,6 +72,7 @@ export function FaxDeliveryStatusStep({
   recipientSummary,
   pageCount,
   locale,
+  beat,
   retryState,
   isStartingNewFax,
   onRetry,
@@ -83,9 +91,22 @@ export function FaxDeliveryStatusStep({
   // session with a retry the customer has not used, so sending it away would
   // mean forfeiting what they already paid for.
   const isDelivered = fax?.status === FAX_STATUS.DELIVERED
+  // A settled fax receives no further snapshots, so a sweep there would be a
+  // heartbeat for something that has stopped rather than a sign of life.
+  const isInFlight = !isDelivered && !isFailed
 
   return (
     <>
+      {/* Keyed so each snapshot replaces the element rather than re-rendering
+          it: a one-shot animation restarts only when its element is new, and
+          re-rendering the same node leaves it finished and still. */}
+      {isInFlight && beat > 0 ? (
+        <span
+          key={beat}
+          aria-hidden="true"
+          className="fax-heartbeat pointer-events-none absolute inset-0 z-10"
+        />
+      ) : null}
       {/* The heading's description slot carries the failure sentence, so it is
           the single primary message and the only live region announcing it —
           the activity log suppresses failed snapshots. Actions sit beside it

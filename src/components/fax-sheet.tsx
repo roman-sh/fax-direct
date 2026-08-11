@@ -85,6 +85,7 @@ export function FaxSheet(props: FaxSheetProps) {
       {...props}
       session={faxSession.state.session}
       onSessionChange={faxSession.update}
+      beat={faxSession.beat}
       isStartingNewFax={isStartingNewFax}
       onStartNewFax={() => void handleStartNewFax()}
     />
@@ -98,11 +99,13 @@ function HydratedFaxFlow({
   maxPages,
   session,
   onSessionChange,
+  beat,
   isStartingNewFax,
   onStartNewFax,
 }: FaxSheetProps & {
   session: FaxSessionData
   onSessionChange: (session: FaxSessionData) => void
+  beat: number
   isStartingNewFax: boolean
   onStartNewFax: () => void
 }) {
@@ -315,6 +318,7 @@ function HydratedFaxFlow({
               }
               pageCount={session.document?.pageCount ?? pageCount}
               locale={locale}
+              beat={beat}
               retryState={faxRetry.state}
               isStartingNewFax={isStartingNewFax}
               onRetry={() => void handleFaxRetry()}

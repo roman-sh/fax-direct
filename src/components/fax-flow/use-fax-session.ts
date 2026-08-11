@@ -19,6 +19,10 @@ type ErrorResponse = {
 export function useFaxSession() {
   const [state, setState] =
     useState<FaxSessionLoadState>({ status: "loading" })
+  // Counts snapshots that arrived over the socket, and nothing else. Local
+  // mutations produce a session too, but they prove only that this tab can
+  // reach the server, which is not what a liveness signal is for.
+  const [beat, setBeat] = useState(0)
   const shouldConnect =
     state.status === "ready" && state.session.document !== null
 
@@ -84,6 +88,7 @@ export function useFaxSession() {
 
         if (message.type === "session") {
           setState({ status: "ready", session: message.session })
+          setBeat((count) => count + 1)
         }
       } catch {
         // Ignore malformed messages and keep the last authoritative snapshot.
@@ -136,6 +141,7 @@ export function useFaxSession() {
   }, [])
 
   return {
+    beat,
     load,
     startNew,
     state,

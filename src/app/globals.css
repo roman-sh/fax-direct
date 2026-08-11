@@ -161,3 +161,55 @@
     letter-spacing: normal;
   }
 }
+
+/* One sweep of light across the delivery card, played once each time a session
+   snapshot arrives over the WebSocket.
+   
+   It exists to make a live connection visible. The provider is polled every
+   ten seconds or so and the resulting snapshot is broadcast whether or not
+   anything in it changed, so during a delivery this repeats steadily, and a
+   customer watching a fax go out can tell the difference between a page count
+   that is holding still and a page count that has stopped arriving.
+
+   Deliberately faint: it sits above the card at low opacity and passes in well
+   under a second. The animation is one-shot, so the element carrying it has to
+   be replaced to play again rather than merely re-rendered.
+
+   It is more movement than an interface would usually spend on a status that
+   has not changed, and that is a judgement about who is watching: this is a
+   service someone uses once and then not again for a year, in a moment when
+   they need to know the fax is still going. Somebody sending faxes all day
+   would find it too much, and nobody sends faxes all day here. */
+@keyframes fax-heartbeat-sweep {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.fax-heartbeat {
+  /* Waiting off the leading edge, and holding off the trailing one once the
+     sweep has passed. Both matter: an animation without a fill mode returns
+     the element to this declared transform when it finishes, so a band left
+     at the default of zero would sit lit in the middle of the card between
+     beats instead of only crossing it. */
+  transform: translateX(100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--brand) 6%, transparent) 40%,
+    color-mix(in oklch, var(--brand) 14%, transparent) 50%,
+    color-mix(in oklch, var(--brand) 6%, transparent) 60%,
+    transparent 100%
+  );
+  animation: fax-heartbeat-sweep 850ms ease-in-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fax-heartbeat {
+    animation: none;
+    background: none;
+  }
+}

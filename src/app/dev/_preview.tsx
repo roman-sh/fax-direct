@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 
 import { FLOW_STACK_CLASS } from "@/components/fax-flow/flow-card"
 
@@ -59,6 +59,31 @@ export function PreviewCase({
       </div>
     </section>
   )
+}
+
+/**
+ * Stands in for the snapshots the session WebSocket delivers, so the heartbeat
+ * can be judged without paying for a fax and watching it go out.
+ *
+ * The default matches what the provider poll actually produces — a broadcast
+ * roughly every eleven seconds for as long as a delivery is running, whether
+ * or not anything in it changed. Nothing here is imported by the application;
+ * in the real flow the count comes from the socket, which is the entire point
+ * of the signal.
+ */
+export function useLocalBeat(intervalMs = 11_000) {
+  const [beat, setBeat] = useState(1)
+
+  useEffect(() => {
+    const timer = setInterval(
+      () => setBeat((count) => count + 1),
+      intervalMs
+    )
+
+    return () => clearInterval(timer)
+  }, [intervalMs])
+
+  return beat
 }
 
 /**

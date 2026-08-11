@@ -72,8 +72,12 @@ Remaining:
 - [x] Keep the three-card stack at every width, laid out horizontally on wide
       screens and vertically on narrow ones, instead of showing one card alone
       below the current breakpoint.
-- [ ] Signal each arriving WebSocket snapshot, so a live connection is visible
+- [x] Signal each arriving WebSocket snapshot, so a live connection is visible
       and a dropped one is noticeable by its absence.
+- [ ] Stop reconnecting the session WebSocket after the handshake is refused.
+      A rejected upgrade reaches the browser as a generic close, so an expired
+      cookie in an abandoned tab is retried every eleven seconds indefinitely;
+      one such tab produced 724 rejected requests in six hours.
 - [ ] Later, reconcile ambiguous submission failures through InterFAX reference
       search before allowing another real submission.
 
