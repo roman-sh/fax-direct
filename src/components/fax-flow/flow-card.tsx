@@ -24,9 +24,24 @@ type FlowCardProps = {
 }
 
 /**
- * Presents one stage of the desktop fax flow. The active card expands while
- * completed and future cards collapse into ordered tabs. Only completed tabs
- * are interactive, preventing users from skipping required validation.
+ * Presents one stage of the fax flow. The active card expands while completed
+ * and future cards collapse into ordered tabs. Only completed tabs are
+ * interactive, preventing users from skipping required validation.
+ *
+ * The stack appears once the viewport can hold it, rather than at a borrowed
+ * device breakpoint. Its width is the sum of what the parts need:
+ *
+ *   open card          21.00rem   summary rows, and a heading carrying both a
+ *                                 message and up to two buttons
+ *   two collapsed       6.50rem   2 × 3.25rem
+ *   their overlap      -1.50rem   2 × -0.75rem
+ *   page gutters        2.00rem   px-4 either side, the narrowest case
+ *                      --------
+ *   FLOW_STACK_MIN     28.00rem   ≈ 448px
+ *
+ * Below that the open card would be squeezed past usefulness, so a single card
+ * is shown instead until the vertical layout exists. Changing any figure above
+ * means recomputing the `min-[28rem]` variants in this file.
  */
 export function FlowCard({
   step,
@@ -42,7 +57,7 @@ export function FlowCard({
   const isComplete = step < activeStep
   const state = isActive ? "active" : isComplete ? "complete" : "future"
   const cardStyle = {
-    flexBasis: isActive ? "0rem" : "5rem",
+    flexBasis: isActive ? "0rem" : "var(--flow-card-collapsed)",
     flexGrow: isActive ? 1 : 0,
     // Keep the closest card above more distant cards as the stack changes.
     zIndex: 30 - Math.abs(step - activeStep),
@@ -54,8 +69,12 @@ export function FlowCard({
       style={cardStyle}
       className={cn(
         "relative min-w-0 gap-0 overflow-hidden py-0 transition-[flex-basis,flex-grow,transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-        "hidden h-full ring-1 ring-foreground/12 lg:flex",
-        step > 1 && "lg:-mr-3",
+        // A collapsed card is a strip holding a marker, a rule, rotated text and
+        // an icon. Narrow screens give it less, so the open card keeps room for
+        // a heading that already carries a message and up to two buttons.
+        "[--flow-card-collapsed:3.25rem] md:[--flow-card-collapsed:5rem]",
+        "hidden h-full ring-1 ring-foreground/12 min-[28rem]:flex",
+        step > 1 && "min-[28rem]:-mr-3",
         isActive &&
           "flex flex-1 shadow-[0_1px_2px_oklch(0.198_0.01_65/0.08),0_28px_64px_-30px_oklch(0.198_0.01_65/0.35)]",
         isComplete &&
@@ -81,7 +100,7 @@ export function FlowCard({
         disabled={!isComplete || locked}
         onClick={() => onOpen(step)}
         className={cn(
-          "absolute inset-0 hidden w-full flex-col items-center gap-3 overflow-hidden px-2 py-5 transition-opacity duration-150 lg:flex",
+          "absolute inset-0 hidden w-full flex-col items-center gap-2 overflow-hidden px-1.5 py-4 transition-opacity duration-150 min-[28rem]:flex md:gap-3 md:px-2 md:py-5",
           isActive
             ? "pointer-events-none opacity-0"
             : "pointer-events-auto opacity-100 delay-150",
