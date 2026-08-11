@@ -6,9 +6,11 @@ belong in `API.md`.
 
 ## Current position
 
-Milestone 1 is complete. Milestone 2 is implemented on the server and needs an
-end-to-end deployed verification. The next user-visible work is delivery status
-and manual retry behavior.
+Milestones 1 and 2 are complete: a real fax has been delivered end to end
+through the deployed Workflow, and a real provider failure has been classified
+and shown to the browser. Milestone 3 is largely done — the status card, its
+messages, and manual retry all ship — leaving the new-session action and the
+layout work below. Payments remain simulated.
 
 ## Milestone 1: Persistent fax order — complete
 
@@ -25,7 +27,7 @@ and manual retry behavior.
 - [x] Restore the most advanced valid card after refresh.
 - [x] Synchronize authoritative session updates over PartySocket/WebSocket.
 
-## Milestone 2: Provider delivery — in progress
+## Milestone 2: Provider delivery — complete
 
 Implemented:
 
@@ -41,25 +43,37 @@ Implemented:
 - [x] Disable automatic InterFAX submission retries.
 - [x] Mark a submission error as a final generic failure.
 
+- [x] Deploy the Workflow binding and verify the complete paid-to-delivered
+      path against the evaluation account.
+- [x] Verify one real provider failure through D1, polling, Durable Object, and
+      WebSocket state.
+- [x] Route provider traffic through a tunnel, because InterFAX rejects an IPv6
+      client address before evaluating credentials.
+
 Remaining:
 
-- [ ] Deploy the Workflow binding and verify the complete paid-to-delivered
-      path against the evaluation account.
-- [ ] Verify one real provider failure through D1, polling, Durable Object, and
-      WebSocket state.
 - [ ] Confirm production InterFAX retention settings with the provider.
+- [ ] Ask InterFAX to accept IPv6 client addresses, which would retire the
+      tunnel and the host it runs on.
 
 ## Milestone 3: Delivery status and recovery
 
-- [ ] Turn the payment card into a live preparing, queued, sending, finalizing,
+- [x] Turn the payment card into a live preparing, queued, sending, finalizing,
       delivered, or failed status card.
-- [ ] Format Hebrew progress and semantic failure messages on the client.
-- [ ] Show page progress separately from final delivery confirmation.
+- [x] Format Hebrew progress and semantic failure messages on the client.
+- [x] Show page progress separately from final delivery confirmation.
 - [x] Offer controls appropriate to the failure: edit number, edit document,
       or manually retry.
 - [x] Start every manual retry as a new Workflow and InterFAX transaction while
       retaining the same paid session.
+- [x] Retire a failed delivery when its document or recipient is edited, so the
+      summary returns and asks the customer to send rather than to pay again.
 - [ ] Add a “send another fax” action that creates a fresh browser session.
+- [ ] Keep the three-card stack at every width, laid out horizontally on wide
+      screens and vertically on narrow ones, instead of showing one card alone
+      below the current breakpoint.
+- [ ] Signal each arriving WebSocket snapshot, so a live connection is visible
+      and a dropped one is noticeable by its absence.
 - [ ] Later, reconcile ambiguous submission failures through InterFAX reference
       search before allowing another real submission.
 
@@ -99,3 +113,7 @@ Remaining:
 | 2026-08-05 | Give each InterFAX transaction one attempt; expose a manual retry instead of waiting through automatic retries. |
 | 2026-08-07 | Run paid delivery in Cloudflare Workflows while keeping browser-facing state in the session Durable Object. |
 | 2026-08-07 | Treat submission errors as failed initially; postpone reference-based reconciliation of ambiguous timeouts. |
+| 2026-08-10 | Route InterFAX traffic through a Cloudflare Tunnel to a dedicated host, because the provider rejects an IPv6 client address before evaluating credentials. |
+| 2026-08-10 | Number delivery attempts in the session Durable Object, and gate every attempt on it, so one payment cannot start two faxes. |
+| 2026-08-10 | Derive the quote from the document and the recipient together, so editing either re-prices instead of clearing. |
+| 2026-08-11 | Answer a failure by clearing it when its document or recipient changes, returning the paid summary with a send action. |

@@ -88,6 +88,7 @@ safe to bundle into the browser.
 | --- | --- |
 | `npm install` | Install dependencies |
 | `npm run dev` | Run the normal Next.js development server |
+| `npm run logs:workflow` | Describe the latest delivery Workflow instance |
 | `npm run build` | Build the Next.js application |
 | `npm run preview` | Build and preview through OpenNext/Cloudflare |
 | `npm run deploy` | Build and deploy the Worker to Cloudflare |
@@ -103,6 +104,17 @@ safe to bundle into the browser.
 Object and Workflow bindings require a deployed Worker for a complete
 end-to-end test. The OpenNext build still verifies that the Worker bundle can
 be produced locally.
+
+Interface states that normally require a paid and failed fax are reachable
+without one. `/dev/cards` renders the three-card stack at each position and
+`/dev/delivery` renders every delivery state, both from fabricated props
+against the production components, so a correction made while looking at a
+preview is a correction to the application itself.
+
+Deploying does not run migrations. `npm run deploy` ships code and bindings
+only, so a schema change needs `npm run db:d1:migrate:remote` as a separate
+step; shipping code that writes a column the database lacks fails at the
+Workflow step that stores the transmission.
 
 ## Configuration
 
@@ -124,11 +136,17 @@ D1, both Durable Object classes, and the delivery Workflow.
 ### InterFAX transport
 
 Production requests use `https://interfax.fax.direct`, which must remain routed
-through the Cloudflare Tunnel to nginx on `http://localhost:8080`. nginx removes
+through the Cloudflare Tunnel to Caddy on `http://127.0.0.1:8080`. Caddy removes
 `X-Forwarded-For` and proxies the request to `https://rest.interfax.net` with the
 provider host and TLS SNI preserved. This proxy is required because InterFAX
 returns 401 before evaluating Basic auth when `X-Forwarded-For` contains an IPv6
 address, as it does for direct requests from Cloudflare Workers.
+
+Caddy resolves the provider per request rather than at startup, so a momentary
+DNS failure cannot leave the proxy down until someone restarts it. Its site
+address matches any host, because cloudflared forwards the tunnel route's own
+host header rather than the listener's address, and `default_bind` keeps the
+socket on loopback so only the tunnel can reach it.
 
 The `npm run interfax:test` diagnostic intentionally calls InterFAX directly
 from the developer machine, so it can distinguish provider or authentication

@@ -7,7 +7,18 @@ detailed for `README.md`. Product progress and future work belong in
 
 Provider submission, chunked document upload, D1 persistence, polling, Durable
 Object fax state, and Workflow orchestration are implemented. Sections marked
-as planned describe the remaining browser UI and manual-recovery behavior.
+as planned describe the remaining recovery behavior.
+
+## Transport
+
+Requests are sent to `https://interfax.fax.direct`, not to the provider
+directly. InterFAX returns a bare 401 — before evaluating Basic auth — whenever
+the client address it sees is IPv6, which is how requests originating from
+Cloudflare Workers arrive. Valid and invalid credentials are indistinguishable
+in that case, because the credentials are never examined. The hostname is a
+Cloudflare Tunnel terminating on a dedicated host, where a small proxy removes
+`X-Forwarded-For` before forwarding to `https://rest.interfax.net`. Operating
+details are in `README.md`.
 
 ## Sending
 
@@ -28,10 +39,12 @@ as planned describe the remaining browser UI and manual-recovery behavior.
   as `failed` with `UNKNOWN_FAILURE`. Do not create a D1 row or start polling.
 - The first release deliberately treats ambiguous submission failures the same
   way. Searching by the session reference before retrying is postponed.
-- Planned manual retry behavior reads the retained PDF from R2 and submits a
-  fresh InterFAX request, creating a new Workflow instance, InterFAX
-  transaction, and D1 row. Do not use the InterFAX resend endpoint because the
-  provider image is deleted after use.
+- A manual retry reads the retained PDF from R2 and submits a fresh InterFAX
+  request, creating a new Workflow instance, InterFAX transaction, and D1 row.
+  Do not use the InterFAX resend endpoint because the provider image is deleted
+  after use. The session Durable Object numbers each attempt and authorizes it,
+  so one payment cannot start two deliveries, and a polling result names the
+  attempt it belongs to so a superseded one cannot overwrite a newer.
 
 ## D1 transmission record
 
@@ -213,12 +226,16 @@ rather than presenting an unsupported precise diagnosis.
 | `SERVICE_UNAVAILABLE` | `1`, `256`, `205000`, `205001`, `206001` |
 | `UNKNOWN_FAILURE` | `7200` and any undocumented positive status |
 
-## Planned client-side fax messages and enforced locale
+## Client-side fax messages and enforced locale
 
 Use `intl-messageformat` in the interactive client for fax progress and failure
 messages. It provides ICU message-template interpolation and plural selection
-without introducing a full translation-management system. This package and
-the delivery-status UI have not been added yet.
+without introducing a full translation-management system.
+
+The Hebrew is written first and the English follows it. Treating Hebrew as the
+translated column produced sentences that were accurate and read as machine
+output: the wrong sense of a verb, a register unlike the rest of the interface,
+and vocabulary the product does not use elsewhere.
 
 The client does not infer its locale from each WebSocket event. The page's
 Server Component selects the enforced locale during the initial HTTP render and
@@ -378,7 +395,7 @@ UI into locale catalogs is a separate, postponed refactor.
   authoritative snapshot to the browser over WebSocket.
 - InterFAX webhooks are not required initially.
 
-## Planned user-visible state
+## User-visible state
 
 Page progress and final delivery status are separate:
 
