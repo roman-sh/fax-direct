@@ -2,12 +2,7 @@
 
 import { FileText, Phone, Send } from "lucide-react"
 
-import {
-  PreviewCase,
-  PreviewPage,
-  useLocalBeat,
-  useLocalStep,
-} from "@/app/dev/_preview"
+import { PreviewCase, PreviewPage, useLocalStep } from "@/app/dev/_preview"
 import { DocumentStep } from "@/components/fax-flow/document-step"
 import { FaxDeliveryStatusStep } from "@/components/fax-flow/fax-delivery-status-step"
 import { FlowCard } from "@/components/fax-flow/flow-card"
@@ -161,7 +156,6 @@ export default function DeliveryPreview() {
  */
 function StatusCard({ fax }: { fax: FaxSessionFax | null }) {
   const [activeStep, setActiveStep] = useLocalStep(3)
-  const beat = useLocalBeat()
 
   return (
     <>
@@ -202,6 +196,9 @@ function StatusCard({ fax }: { fax: FaxSessionFax | null }) {
         />
       </FlowCard>
 
+      {/* `beat` stays at zero here. The sweep is driven by arriving socket
+          messages, and a preview has no session behind it, so animating it
+          from a timer would be showing something the page cannot know. */}
       <FlowCard
         step={3}
         activeStep={activeStep}
@@ -216,7 +213,7 @@ function StatusCard({ fax }: { fax: FaxSessionFax | null }) {
           recipientSummary="077-4448706"
           pageCount={2}
           locale="he-IL"
-          beat={beat}
+          beat={0}
           retryState={{ status: "idle" }}
           isStartingNewFax={false}
           onRetry={() => {}}
