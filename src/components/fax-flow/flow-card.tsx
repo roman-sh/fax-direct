@@ -24,12 +24,12 @@ type FlowCardProps = {
 }
 
 /**
- * Presents one stage of the fax flow. The active card expands while completed
- * and future cards collapse into ordered tabs. Only completed tabs are
- * interactive, preventing users from skipping required validation.
+ * The box the three cards live in. Exported because the real sheet and the dev
+ * previews both need it, and the two axes below only agree if they agree
+ * exactly.
  *
- * The stack appears once the viewport can hold it, rather than at a borrowed
- * device breakpoint. Its width is the sum of what the parts need:
+ * The stack turns horizontal once the viewport can hold it, rather than at a
+ * borrowed device breakpoint. Its width is the sum of what the parts need:
  *
  *   open card          21.00rem   summary rows, and a heading carrying both a
  *                                 message and up to two buttons
@@ -39,9 +39,25 @@ type FlowCardProps = {
  *                      --------
  *   FLOW_STACK_MIN     28.00rem   ≈ 448px
  *
- * Below that the open card would be squeezed past usefulness, so a single card
- * is shown instead until the vertical layout exists. Changing any figure above
- * means recomputing the `min-[28rem]` variants in this file.
+ * Below that the open card would be squeezed past usefulness, so the stack
+ * turns on its side: the strips run across the top and bottom and the open card
+ * takes the height between them. The taller column height is that same open
+ * card plus the two strips it now sits between, so the body keeps the room it
+ * has in the horizontal layout instead of surrendering it to the strips.
+ * Changing any figure above means recomputing the `min-[28rem]` variants here
+ * and in the collapsed heights below.
+ */
+export const FLOW_STACK_CLASS =
+  "flex h-[37.5rem] w-full flex-col items-stretch min-[28rem]:h-[31rem] min-[28rem]:flex-row min-[28rem]:items-start lg:h-[27rem]"
+
+/**
+ * Presents one stage of the fax flow. The active card expands while completed
+ * and future cards collapse into ordered tabs. Only completed tabs are
+ * interactive, preventing users from skipping required validation.
+ *
+ * `flexBasis` and `flexGrow` size the card along whichever axis the stack is
+ * running, so the same two numbers collapse it to a column of strips on a phone
+ * and to a row of them on a desktop, with no second set of measurements.
  */
 export function FlowCard({
   step,
@@ -68,19 +84,25 @@ export function FlowCard({
       data-state={state}
       style={cardStyle}
       className={cn(
-        "relative min-w-0 gap-0 overflow-hidden py-0 transition-[flex-basis,flex-grow,transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-        // A collapsed card is a strip holding a marker, a rule, rotated text and
-        // an icon. Narrow screens give it less, so the open card keeps room for
-        // a heading that already carries a message and up to two buttons.
+        "relative min-h-0 min-w-0 gap-0 overflow-hidden py-0 transition-[flex-basis,flex-grow,transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        // A collapsed card is a strip holding a marker, a rule, a label and an
+        // icon. Standing up it is 3.25rem wide and the label turns on its side;
+        // lying down it is 3.25rem tall and the label reads normally. Wider
+        // screens can spare more, but only in the horizontal layout, where the
+        // measurement is width taken from the open card rather than height.
         "[--flow-card-collapsed:3.25rem] md:[--flow-card-collapsed:5rem]",
-        "hidden h-full ring-1 ring-foreground/12 min-[28rem]:flex",
-        step > 1 && "min-[28rem]:-mr-3",
+        "flex ring-1 ring-foreground/12 min-[28rem]:h-full",
+        // Each card is tucked under the one before it by the same amount on
+        // either axis, so the strips read as a stack rather than as a list.
+        // The depth offsets do not carry over: across a row they are the stack
+        // seen edge-on, but down a column they would only be uneven gaps.
+        step > 1 && "-mt-3 min-[28rem]:mt-0 min-[28rem]:-mr-3",
         isActive &&
-          "flex flex-1 shadow-[0_1px_2px_oklch(0.198_0.01_65/0.08),0_28px_64px_-30px_oklch(0.198_0.01_65/0.35)]",
+          "flex-1 shadow-[0_1px_2px_oklch(0.198_0.01_65/0.08),0_28px_64px_-30px_oklch(0.198_0.01_65/0.35)]",
         isComplete &&
-          "translate-y-2 bg-card shadow-[0_12px_32px_-24px_oklch(0.198_0.01_65/0.35)]",
+          "bg-card shadow-[0_12px_32px_-24px_oklch(0.198_0.01_65/0.35)] min-[28rem]:translate-y-2",
         state === "future" &&
-          "translate-y-4 bg-[color-mix(in_oklch,var(--card),var(--muted)_35%)] shadow-[0_10px_26px_-24px_oklch(0.198_0.01_65/0.3)]"
+          "bg-[color-mix(in_oklch,var(--card),var(--muted)_35%)] shadow-[0_10px_26px_-24px_oklch(0.198_0.01_65/0.3)] min-[28rem]:translate-y-4"
       )}
     >
       <div
@@ -100,7 +122,7 @@ export function FlowCard({
         disabled={!isComplete || locked}
         onClick={() => onOpen(step)}
         className={cn(
-          "absolute inset-0 hidden w-full flex-col items-center gap-2 overflow-hidden px-1.5 py-4 transition-opacity duration-150 min-[28rem]:flex md:gap-3 md:px-2 md:py-5",
+          "absolute inset-0 flex flex-row items-center gap-3 overflow-hidden px-5 py-0 transition-opacity duration-150 min-[28rem]:w-full min-[28rem]:flex-col min-[28rem]:gap-2 min-[28rem]:px-1.5 min-[28rem]:py-4 md:gap-3 md:px-2 md:py-5",
           isActive
             ? "pointer-events-none opacity-0"
             : "pointer-events-auto opacity-100 delay-150",
@@ -129,11 +151,20 @@ export function FlowCard({
           className="h-8 w-px shrink-0 bg-border"
         />
 
-        <span className="relative min-h-0 w-full flex-1 overflow-hidden">
+        {/* Stretching matters only lying down, where the label is the strip's
+            width but nothing gives it the strip's height: an absolute child
+            leaves its parent no content to be as tall as, and the parent
+            collapses to nothing and clips the label away. */}
+        <span className="relative min-h-0 min-w-0 flex-1 self-stretch overflow-hidden min-[28rem]:w-full">
+          {/* Rotating the label leaves its layout box unrotated, so the box has
+              to be sized by the parent and the text centred inside it. That
+              holds lying down too, where the only change is that the text is
+              not turned and its length is capped by the strip rather than by
+              the card's height. */}
           <span
             dir={isComplete ? "ltr" : "rtl"}
             className={cn(
-              "absolute top-1/2 left-1/2 block max-w-72 -translate-x-1/2 -translate-y-1/2 -rotate-90 truncate whitespace-nowrap",
+              "absolute top-1/2 left-1/2 block max-w-full -translate-x-1/2 -translate-y-1/2 truncate whitespace-nowrap min-[28rem]:max-w-72 min-[28rem]:-rotate-90",
               isComplete
                 ? "font-mono text-xs font-medium"
                 : "text-xs font-semibold"
@@ -177,14 +208,25 @@ export function CardHeading({
     // below them stayed empty. Nothing between the float and the text may
     // establish its own formatting context, which is why the title and the
     // step marker are inline rather than a flex row.
-    <CardHeader className="block border-b border-border px-7 py-5 after:block after:clear-both after:content-['']">
+    // `items-stretch` overrides the `items-start` CardHeader carries for its
+    // own grid: left alone it makes every child shrink to fit, so actions that
+    // ask to span the heading silently cannot. It is inert above the
+    // breakpoint, where the heading is a block again.
+    <CardHeader className="flex flex-col items-stretch border-b border-border px-7 py-5 min-[28rem]:block min-[28rem]:after:block min-[28rem]:after:clear-both min-[28rem]:after:content-['']">
       {/* A float keeps its width whatever the text does, so two buttons abreast
           leave the title too little room and wrap it. Stacking them narrows the
           float enough for the title to hold one line. The query measures the
           card rather than the viewport, because the open card's width depends
-          on the stack around it as much as on the screen. */}
+          on the stack around it as much as on the screen.
+
+          Once the stack stands the card up there is no width to share, and a
+          float would only wrap the title around buttons that already span the
+          card. So the heading becomes an ordinary column and the actions fall
+          to the end of it, below the message they answer. */}
       {actions ? (
-        <div className="float-end ms-4 mb-1">{actions}</div>
+        <div className="order-last mt-3 min-[28rem]:float-end min-[28rem]:mt-0 min-[28rem]:mb-1 min-[28rem]:ms-4">
+          {actions}
+        </div>
       ) : null}
 
       <CardTitle className="text-lg font-semibold">

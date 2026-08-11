@@ -2,6 +2,8 @@
 
 import { useState, type ReactNode } from "react"
 
+import { FLOW_STACK_CLASS } from "@/components/fax-flow/flow-card"
+
 /**
  * Shared furniture for the preview pages. A preview frame keeps every example
  * at the same width as the real sheet so proportions are honest, and labels it
@@ -52,7 +54,7 @@ export function PreviewCase({
           <p className="text-sm text-muted-foreground">{note}</p>
         ) : null}
       </div>
-      <div className="flex h-[31rem] w-full items-start lg:h-[27rem]">
+      <div className={FLOW_STACK_CLASS}>
         {children}
       </div>
     </section>

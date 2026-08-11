@@ -69,7 +69,7 @@ Remaining:
 - [x] Retire a failed delivery when its document or recipient is edited, so the
       summary returns and asks the customer to send rather than to pay again.
 - [ ] Add a “send another fax” action that creates a fresh browser session.
-- [ ] Keep the three-card stack at every width, laid out horizontally on wide
+- [x] Keep the three-card stack at every width, laid out horizontally on wide
       screens and vertically on narrow ones, instead of showing one card alone
       below the current breakpoint.
 - [ ] Signal each arriving WebSocket snapshot, so a live connection is visible

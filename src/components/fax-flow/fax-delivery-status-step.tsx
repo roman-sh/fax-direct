@@ -301,11 +301,27 @@ function FaxFailureActions({
       : [retryAction, ...(editAction ? [editAction] : [])]
 
   return (
-    <div className="flex flex-col items-end gap-2">
-      {/* Stacked by default, side by side only when the heading is wide enough
-          to hold both beside the title — calibrated against the real heading rather than computed, since the parts do not add up as neatly as they look. The float keeps its width whatever the
-          text does, so two abreast in a narrow card wrap the title instead. */}
-      <div className="flex flex-col items-stretch gap-2 @[27.5rem]/card-header:flex-row @[27.5rem]/card-header:flex-wrap @[27.5rem]/card-header:items-center @[27.5rem]/card-header:justify-end">
+    // Shrink-to-fit everywhere the buttons sit beside something, so they take
+    // the room they need and no more. Stacked on the smallest phones they are
+    // the only thing on their line, and matching the heading width reads as a
+    // deliberate pair rather than as two buttons that failed to fit.
+    <div className="flex flex-col items-end gap-2 max-[23rem]:items-stretch">
+      {/* Side by side, because two buttons need about 265px and the heading is
+          usually wider. They stack in one case only: the heading is beside the
+          title rather than below it, and is too narrow to hold both without
+          wrapping the title — a float keeps its width whatever the text does,
+          so it takes the room from the title rather than from itself. The
+          width is calibrated against the real heading rather than computed,
+          since the parts do not add up as neatly as they look. Once the stack
+          stands up the buttons drop below the message and have the whole
+          heading, so the calibration no longer applies and the row returns.
+
+          They stack again on the smallest phones, where the pair needs about
+          273px and the heading has 276px: near enough that rounding decides,
+          and wrapping leaves them ragged rather than aligned. Stacking is the
+          honest answer there — a minimum width would only make the page scroll
+          sideways on a 320px screen, which is worse than a taller heading. */}
+      <div className="flex flex-row flex-wrap items-center justify-end gap-2 max-[23rem]:flex-col max-[23rem]:items-stretch min-[28rem]:@max-[27.5rem]/card-header:flex-col min-[28rem]:@max-[27.5rem]/card-header:flex-nowrap min-[28rem]:@max-[27.5rem]/card-header:items-stretch">
         {actions.map(({ action, label, icon, onClick }) => (
           <Button
             key={action}

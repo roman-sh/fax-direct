@@ -7,6 +7,7 @@ import { DocumentStep } from "@/components/fax-flow/document-step"
 import { FaxDeliveryStatusStep } from "@/components/fax-flow/fax-delivery-status-step"
 import type { FaxUiLocale } from "@/components/fax-flow/fax-status-messages"
 import {
+  FLOW_STACK_CLASS,
   FlowCard,
   type FaxStep,
 } from "@/components/fax-flow/flow-card"
@@ -215,7 +216,7 @@ function HydratedFaxFlow({
       className="w-full max-w-6xl"
       aria-label="תצוגת תהליך שליחת פקס"
     >
-      <div className="flex h-[31rem] w-full items-start lg:h-[27rem]">
+      <div className={FLOW_STACK_CLASS}>
         <FlowCard
           step={1}
           activeStep={activeStep}
@@ -344,7 +345,9 @@ function SessionStateCard({ children }: { children: ReactNode }) {
       className="w-full max-w-6xl"
       aria-label="טעינת תהליך שליחת פקס"
     >
-      <Card className="flex h-[31rem] items-center justify-center gap-4 text-muted-foreground lg:h-[27rem]">
+      {/* Matching the stack's height keeps the page from resettling under the
+          reader the moment the session arrives. */}
+      <Card className="flex h-[37.5rem] items-center justify-center gap-4 text-muted-foreground min-[28rem]:h-[31rem] lg:h-[27rem]">
         {children}
       </Card>
     </section>
