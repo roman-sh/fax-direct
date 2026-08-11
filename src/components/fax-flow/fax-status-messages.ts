@@ -44,8 +44,20 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
     progress: {
       paymentPaid: "התשלום התקבל. מתחילים את השליחה.",
       preparing: "מכינים את המסמך לשליחה.",
-      queued: "הפקס התקבל וממתין לשליחה.",
-      sendingConnecting: "מתחברים למספר הפקס.",
+      // The subject stays "המסמך" for the whole run-up to dialling. Calling it
+      // "הפקס" here, and saying it had been received, read as though it had
+      // already reached the recipient — a line before we have dialled at all.
+      queued: "המסמך ממתין בתור לשליחה.",
+      // Names neither end of the call, which is what keeps it unambiguous:
+      // "פקס" alone would mean both the document being sent and the machine
+      // answering, and the only way to say which is to name the machine, at
+      // which point the line is about our plumbing rather than their document.
+      //
+      // "העברה", not "שליחה", because the copy already separates the two: a
+      // transmission is העברה and only a confirmed arrival is מסירה, which is
+      // what lets finalizing and DELIVERY_UNCONFIRMED say every page went
+      // without claiming any of it arrived. This line opens that stretch.
+      sendingConnecting: "העברת המסמך מתבצעת כעת.",
       sendingProgress: `{pagesSent, plural,
         =1 {נשלח עמוד אחד מתוך {pagesSubmitted, plural, =1 {עמוד אחד} =2 {שניים} other {# עמודים}}.}
         =2 {נשלחו שני עמודים מתוך {pagesSubmitted, plural, =2 {שניים} other {# עמודים}}.}
@@ -70,7 +82,8 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
       FAX_INCOMPATIBLE: "התקשורת נכשלה. בדקו את המספר ונסו שנית.",
       TRANSMISSION_INTERRUPTED:
         "השליחה נקטעה לפני שהסתיימה. נסו שוב.",
-      CONNECTION_FAILED: "חיבור לפקס נכשל. בדקו את המספר ונסו שוב.",
+      CONNECTION_FAILED:
+        "החיבור למכשיר הפקס נכשל. בדקו את המספר ונסו שוב.",
       DOCUMENT_PROCESSING_FAILED:
         "הכנת המסמך נכשלה. העלו קובץ PDF אחר.",
       CANCELED: "השליחה בוטלה. נסו שוב מאוחר יותר.",
@@ -89,8 +102,8 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
     progress: {
       paymentPaid: "Payment received. Starting the fax delivery.",
       preparing: "Preparing the document for delivery.",
-      queued: "The fax is queued for delivery.",
-      sendingConnecting: "Connecting to the fax number.",
+      queued: "The document is queued for delivery.",
+      sendingConnecting: "The document is being transmitted now.",
       sendingProgress: `{pagesSent, plural,
         one {Sent # page of {pagesSubmitted}.}
         other {Sent # of {pagesSubmitted} pages.}
@@ -117,7 +130,7 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
       TRANSMISSION_INTERRUPTED:
         "The delivery was cut off before it finished. Try again.",
       CONNECTION_FAILED:
-        "Connecting to the fax failed. Check the number and try again.",
+        "Connecting to the fax machine failed. Check the number and try again.",
       DOCUMENT_PROCESSING_FAILED:
         "Preparing the document failed. Upload a different PDF file.",
       CANCELED: "The delivery was cancelled. Try again later.",

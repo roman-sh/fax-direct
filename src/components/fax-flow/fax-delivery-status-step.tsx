@@ -604,6 +604,11 @@ function FaxActivityLog({ entries }: { entries: FaxActivityEntry[] }) {
                   : "text-muted-foreground"
               )}
             >
+              {/* Written pointing away from the text and rendered pointing at
+                  it. This is one of Unicode's mirrored pairs, so a right-facing
+                  character is drawn left-facing inside a right-to-left line;
+                  choosing it by how it should look leaves it aimed off the edge
+                  of the card. */}
               <span
                 aria-hidden="true"
                 className={cn(
@@ -611,7 +616,7 @@ function FaxActivityLog({ entries }: { entries: FaxActivityEntry[] }) {
                   isNewest ? "text-brand" : "invisible"
                 )}
               >
-                ‹
+                ›
               </span>
               <span className="min-w-0">{entry.message}</span>
             </li>
