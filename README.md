@@ -137,9 +137,20 @@ Two things make this fail silently rather than loudly. `view: "events"` is
 required — without it the call still returns `success: true` and simply hands
 back nothing, which reads exactly like a quiet period. And the token wrangler
 holds will not work: its OAuth scopes cover `workers_tail (read)`, which is the
-live stream only, so the query API answers `10000 Authentication error`. This
-needs a separate API token with Workers Observability read, kept out of the
-repository.
+live stream only, so the query API answers `10000 Authentication error`.
+
+The query therefore needs its own API token, created in the Cloudflare
+dashboard with Workers Observability read. Keep it in `.cf-observability-token`
+at the repository root, which `.gitignore` excludes:
+
+```
+TOKEN=$(tr -d '\n' < .cf-observability-token)
+ACCOUNT_ID=094b9620db11564b5864c0afaebae778
+```
+
+The file is deliberately not committed, so a fresh clone has to be given one
+before any of this works. If the token is missing or rejected, that is the
+first thing to check rather than the query.
 
 Each returned event carries `source.message` and `$workers`. Request lines
 appear as `GET|POST <url>`; everything else is application logging, which is

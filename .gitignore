@@ -54,3 +54,7 @@ next-env.d.ts
 
 # editor scratch
 .cursor
+
+# Cloudflare Workers Observability read token, for querying past logs.
+# See README, "Reading production logs".
+.cf-observability-token
