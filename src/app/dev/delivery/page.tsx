@@ -211,7 +211,9 @@ function StatusCard({ fax }: { fax: FaxSessionFax | null }) {
           pageCount={2}
           locale="he-IL"
           retryState={{ status: "idle" }}
+          isStartingNewFax={false}
           onRetry={() => {}}
+          onStartNewFax={() => {}}
           onEditNumber={() => setActiveStep(2)}
           onEditDocument={() => setActiveStep(1)}
         />

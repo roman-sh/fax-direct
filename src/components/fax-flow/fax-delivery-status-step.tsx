@@ -7,6 +7,7 @@ import {
   Clock,
   FileText,
   Phone,
+  Plus,
   RotateCcw,
 } from "lucide-react"
 
@@ -38,7 +39,9 @@ type FaxDeliveryStatusStepProps = {
   pageCount: number | null
   locale: FaxUiLocale
   retryState: FaxRetryState
+  isStartingNewFax: boolean
   onRetry: () => void
+  onStartNewFax: () => void
   onEditNumber: () => void
   onEditDocument: () => void
 }
@@ -63,7 +66,9 @@ export function FaxDeliveryStatusStep({
   pageCount,
   locale,
   retryState,
+  isStartingNewFax,
   onRetry,
+  onStartNewFax,
   onEditNumber,
   onEditDocument,
 }: FaxDeliveryStatusStepProps) {
@@ -74,6 +79,10 @@ export function FaxDeliveryStatusStep({
   const entries = useFaxActivityLog(fax, formatters)
   const presentation = getDeliveryPresentation(fax)
   const isFailed = fax?.status === FAX_STATUS.FAILED
+  // Only a delivered fax offers a fresh session. A failure is still a paid
+  // session with a retry the customer has not used, so sending it away would
+  // mean forfeiting what they already paid for.
+  const isDelivered = fax?.status === FAX_STATUS.DELIVERED
 
   return (
     <>
@@ -99,6 +108,21 @@ export function FaxDeliveryStatusStep({
               onEditNumber={onEditNumber}
               onEditDocument={onEditDocument}
             />
+          ) : isDelivered ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isStartingNewFax}
+              onClick={onStartNewFax}
+            >
+              {isStartingNewFax ? (
+                <Spinner className="size-4" />
+              ) : (
+                <Plus className="size-4" />
+              )}
+              שליחת פקס נוסף
+            </Button>
           ) : null
         }
       />

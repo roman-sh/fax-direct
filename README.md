@@ -116,6 +116,39 @@ only, so a schema change needs `npm run db:d1:migrate:remote` as a separate
 step; shipping code that writes a column the database lacks fails at the
 Workflow step that stores the transmission.
 
+### Reading production logs
+
+`wrangler tail` streams what is happening now and keeps nothing, so it is only
+useful when you can arrange to be watching before the thing you want to see.
+Past requests come from the Workers Observability query API instead:
+
+```
+POST https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/observability/telemetry/query
+{
+  "queryId": "<any label>",
+  "timeframe": { "from": <epoch ms>, "to": <epoch ms> },
+  "parameters": { "datasets": ["cloudflare-workers"] },
+  "view": "events",
+  "limit": 1000
+}
+```
+
+Two things make this fail silently rather than loudly. `view: "events"` is
+required — without it the call still returns `success: true` and simply hands
+back nothing, which reads exactly like a quiet period. And the token wrangler
+holds will not work: its OAuth scopes cover `workers_tail (read)`, which is the
+live stream only, so the query API answers `10000 Authentication error`. This
+needs a separate API token with Workers Observability read, kept out of the
+repository.
+
+Each returned event carries `source.message` and `$workers`. Request lines
+appear as `GET|POST <url>`; everything else is application logging, which is
+why the structured log names are single searchable tokens (`beginDelivery`,
+`fax_socket_closed`, `interfax_transaction_completed`) rather than sentences.
+The HTTP status lives at `$workers.event.response.status`, and it is worth
+looking at even for requests that report `outcome: "ok"` — a Worker that
+returns 401 has run successfully from Cloudflare's point of view.
+
 ## Configuration
 
 Operational market settings live in `config/market.il.json`. Publishing writes

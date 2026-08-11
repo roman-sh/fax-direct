@@ -23,29 +23,7 @@ export async function getOrCreateFaxBrowserSession(): Promise<{
   created: boolean
   sessionId: string
 }> {
-  const password =
-    getCloudflareContext().env.SESSION_COOKIE_PASSWORD
-
-  if (!password) {
-    throw new Error("SESSION_COOKIE_PASSWORD is not configured.")
-  }
-
-  const options = {
-    cookieName: FAX_SESSION_COOKIE_NAME,
-    cookieOptions: {
-      httpOnly: true,
-      path: "/",
-      sameSite: "lax",
-      secure: true,
-    },
-    password,
-    ttl: FAX_SESSION_TTL_SECONDS,
-  } satisfies SessionOptions
-
-  const session = await getIronSession<FaxBrowserSession>(
-    await cookies(),
-    options
-  )
+  const session = await openFaxBrowserSession()
 
   if (session.sessionId) {
     return {
@@ -76,4 +54,45 @@ export async function getOrCreateFaxBrowserSession(): Promise<{
     created: true,
     sessionId: session.sessionId,
   }
+}
+
+/**
+ * Points the cookie at a brand new session, whatever it held before.
+ *
+ * The previous session is not deleted, only forgotten: its Durable Object
+ * keeps whatever it had and simply stops being addressable from this browser.
+ * That is what makes this safe to call while a fax exists — nothing in flight
+ * is interrupted — and also why callers must decide for themselves whether
+ * abandoning the old session is acceptable, since this function cannot.
+ */
+export async function mintFaxBrowserSession(): Promise<string> {
+  const session = await openFaxBrowserSession()
+
+  session.sessionId = createFaxSessionId()
+  delete session.sessionCode
+  await session.save()
+
+  return session.sessionId
+}
+
+async function openFaxBrowserSession() {
+  const password = getCloudflareContext().env.SESSION_COOKIE_PASSWORD
+
+  if (!password) {
+    throw new Error("SESSION_COOKIE_PASSWORD is not configured.")
+  }
+
+  const options = {
+    cookieName: FAX_SESSION_COOKIE_NAME,
+    cookieOptions: {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: true,
+    },
+    password,
+    ttl: FAX_SESSION_TTL_SECONDS,
+  } satisfies SessionOptions
+
+  return getIronSession<FaxBrowserSession>(await cookies(), options)
 }

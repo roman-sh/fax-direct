@@ -99,8 +99,45 @@ export function useFaxSession() {
     setState({ status: "ready", session })
   }, [])
 
+  /**
+   * Abandons the current session for an empty one.
+   *
+   * The socket needs no attention. It is open only while a document exists, so
+   * an empty session closes it through the effect below, and the next upload
+   * opens a new one against the cookie this call has already replaced.
+   */
+  const startNew = useCallback(async (): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/session/new", { method: "POST" })
+      const result = (await response.json()) as
+        | ErrorResponse
+        | FaxSessionData
+
+      if (!response.ok) {
+        throw new Error(
+          "message" in result && result.message
+            ? result.message
+            : "לא הצלחנו להתחיל שליחה חדשה. נסו שוב."
+        )
+      }
+
+      setState({ status: "ready", session: result as FaxSessionData })
+      return true
+    } catch (error) {
+      setState({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "לא הצלחנו להתחיל שליחה חדשה. נסו שוב.",
+      })
+      return false
+    }
+  }, [])
+
   return {
     load,
+    startNew,
     state,
     update,
   }

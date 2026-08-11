@@ -40,6 +40,23 @@ type FaxSheetProps = {
 /** Restores the browser session before mounting the interactive fax flow. */
 export function FaxSheet(props: FaxSheetProps) {
   const faxSession = useFaxSession()
+  // Bumped when the cookie starts pointing at a different session, to remount
+  // the flow below. The server state arrives empty on its own, but the local
+  // state around it — the chosen file, the typed number, the open step — has
+  // no such signal, and a fresh session showing the previous fax's document
+  // would be worse than either.
+  const [generation, setGeneration] = useState(0)
+  const [isStartingNewFax, setIsStartingNewFax] = useState(false)
+
+  async function handleStartNewFax() {
+    setIsStartingNewFax(true)
+    const started = await faxSession.startNew()
+    setIsStartingNewFax(false)
+
+    if (started) {
+      setGeneration((current) => current + 1)
+    }
+  }
 
   if (faxSession.state.status === "loading") {
     return (
@@ -64,9 +81,12 @@ export function FaxSheet(props: FaxSheetProps) {
 
   return (
     <HydratedFaxFlow
+      key={generation}
       {...props}
       session={faxSession.state.session}
       onSessionChange={faxSession.update}
+      isStartingNewFax={isStartingNewFax}
+      onStartNewFax={() => void handleStartNewFax()}
     />
   )
 }
@@ -78,9 +98,13 @@ function HydratedFaxFlow({
   maxPages,
   session,
   onSessionChange,
+  isStartingNewFax,
+  onStartNewFax,
 }: FaxSheetProps & {
   session: FaxSessionData
   onSessionChange: (session: FaxSessionData) => void
+  isStartingNewFax: boolean
+  onStartNewFax: () => void
 }) {
   const [activeStep, setActiveStep] = useState<FaxStep>(() =>
     getRestoredStep(session)
@@ -292,7 +316,9 @@ function HydratedFaxFlow({
               pageCount={session.document?.pageCount ?? pageCount}
               locale={locale}
               retryState={faxRetry.state}
+              isStartingNewFax={isStartingNewFax}
               onRetry={() => void handleFaxRetry()}
+              onStartNewFax={onStartNewFax}
               onEditNumber={() => setActiveStep(2)}
               onEditDocument={() => setActiveStep(1)}
             />
