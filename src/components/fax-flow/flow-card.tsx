@@ -169,27 +169,38 @@ export function CardHeading({
   actions?: ReactNode
 }) {
   return (
-    <CardHeader className="border-b border-border px-7 py-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="font-mono text-xs font-medium text-brand">
-            0{step}
-          </span>
-          <div className="min-w-0">
-            <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-            <CardDescription
-              className={cn(
-                "mt-1",
-                descriptionTone === "destructive" && "text-destructive"
-              )}
-            >
-              {description}
-            </CardDescription>
-          </div>
-        </div>
+    // The actions float rather than sitting in a flex row, so the description
+    // keeps the full width of the heading: its first lines are shortened
+    // beside the buttons and the rest run the whole way underneath them. A
+    // failure message is the longest text here, and boxing it into the column
+    // left of the buttons wrapped it into a narrow ribbon while the space
+    // below them stayed empty. Nothing between the float and the text may
+    // establish its own formatting context, which is why the title and the
+    // step marker are inline rather than a flex row.
+    <CardHeader className="block border-b border-border px-7 py-5 after:block after:clear-both after:content-['']">
+      {/* A float keeps its width whatever the text does, so two buttons abreast
+          leave the title too little room and wrap it. Stacking them narrows the
+          float enough for the title to hold one line. The query measures the
+          card rather than the viewport, because the open card's width depends
+          on the stack around it as much as on the screen. */}
+      {actions ? (
+        <div className="float-end ms-4 mb-1">{actions}</div>
+      ) : null}
 
-        {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
-      </div>
+      <CardTitle className="text-lg font-semibold">
+        <span className="me-3 font-mono text-xs font-medium text-brand">
+          0{step}
+        </span>
+        {title}
+      </CardTitle>
+      <CardDescription
+        className={cn(
+          "mt-1",
+          descriptionTone === "destructive" && "text-destructive"
+        )}
+      >
+        {description}
+      </CardDescription>
     </CardHeader>
   )
 }

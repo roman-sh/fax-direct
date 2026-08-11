@@ -302,7 +302,10 @@ function FaxFailureActions({
 
   return (
     <div className="flex flex-col items-end gap-2">
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      {/* Stacked by default, side by side only when the heading is wide enough
+          to hold both beside the title (≈17rem of buttons, ≈7.5rem of title, ≈3.5rem of marker and margin). The float keeps its width whatever the
+          text does, so two abreast in a narrow card wrap the title instead. */}
+      <div className="flex flex-col items-stretch gap-2 @[30rem]/card-header:flex-row @[30rem]/card-header:flex-wrap @[30rem]/card-header:items-center @[30rem]/card-header:justify-end">
         {actions.map(({ action, label, icon, onClick }) => (
           <Button
             key={action}
@@ -498,10 +501,22 @@ function FaxActivityLog({ entries }: { entries: FaxActivityEntry[] }) {
     }
   }
 
-  // A failed fax restored after refresh has no non-failure history to show;
-  // an empty console box would only draw attention to nothing.
+  // A failed fax restored after refresh has no non-failure history to show, and
+  // an empty console box would only draw attention to nothing. Its space is
+  // still reserved: the card cannot scroll, so releasing the height would let
+  // the centred summary drop, and a fax failing mid-flight would jolt the rows
+  // downward at the exact moment the customer is reading them. Reserving it as
+  // an invisible copy keeps the two heights from drifting apart.
   if (isEmpty) {
-    return null
+    return (
+      <div
+        aria-hidden="true"
+        className="invisible mx-auto flex w-full max-w-xl flex-col gap-2"
+      >
+        <h4 className="text-xs font-medium">פעילות</h4>
+        <div className="h-24" />
+      </div>
+    )
   }
 
   return (
