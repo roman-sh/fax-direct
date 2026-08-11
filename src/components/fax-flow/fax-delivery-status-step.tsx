@@ -303,9 +303,9 @@ function FaxFailureActions({
   return (
     <div className="flex flex-col items-end gap-2">
       {/* Stacked by default, side by side only when the heading is wide enough
-          to hold both beside the title (≈17rem of buttons, ≈7.5rem of title, ≈3.5rem of marker and margin). The float keeps its width whatever the
+          to hold both beside the title — calibrated against the real heading rather than computed, since the parts do not add up as neatly as they look. The float keeps its width whatever the
           text does, so two abreast in a narrow card wrap the title instead. */}
-      <div className="flex flex-col items-stretch gap-2 @[30rem]/card-header:flex-row @[30rem]/card-header:flex-wrap @[30rem]/card-header:items-center @[30rem]/card-header:justify-end">
+      <div className="flex flex-col items-stretch gap-2 @[27.5rem]/card-header:flex-row @[27.5rem]/card-header:flex-wrap @[27.5rem]/card-header:items-center @[27.5rem]/card-header:justify-end">
         {actions.map(({ action, label, icon, onClick }) => (
           <Button
             key={action}
