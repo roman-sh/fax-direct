@@ -5,7 +5,10 @@ import { CreditCard, FileText, Phone, Send } from "lucide-react"
 import { PreviewCase, PreviewPage, useLocalStep } from "@/app/dev/_preview"
 import { DocumentStep } from "@/components/fax-flow/document-step"
 import { FlowCard, type FaxStep } from "@/components/fax-flow/flow-card"
-import { PaymentStep } from "@/components/fax-flow/payment-step"
+import {
+  formatFaxQuote,
+  PaymentStep,
+} from "@/components/fax-flow/payment-step"
 import { RecipientStep } from "@/components/fax-flow/recipient-step"
 
 const DOCUMENT = {
@@ -15,7 +18,7 @@ const DOCUMENT = {
   sizeBytes: 399873,
 }
 
-const QUOTE = { amount: "9.90", currency: "ILS" } as const
+const QUOTE = { amount: "10.00", currency: "ILS" } as const
 
 /**
  * The three-card stack at each position in the flow. Every card is rendered,
@@ -126,7 +129,7 @@ function Deck({
         step={3}
         activeStep={activeStep}
         title={isResend ? "שליחה חוזרת" : "תשלום ושליחה"}
-        summary={isResend ? "מוכן לשליחה" : "₪9.90"}
+        summary={isResend ? "מוכן לשליחה" : formatFaxQuote(QUOTE)}
         icon={
           isResend ? (
             <Send className="size-4" />

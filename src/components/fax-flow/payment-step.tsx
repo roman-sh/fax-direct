@@ -175,12 +175,28 @@ export function PaymentStep({
   )
 }
 
+/**
+ * A whole-shekel price reads better as ₪10 than as ₪10.00, but a partial one
+ * keeps both digits. `stripIfInteger` is what draws that line: dropping only
+ * trailing zeros would render 9.90 as the awkward ₪9.9.
+ */
+const ILS_AMOUNT_FORMAT = new Intl.NumberFormat("he-IL", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+  trailingZeroDisplay: "stripIfInteger",
+})
+
 export function formatFaxQuote(quote: FaxSessionQuote | null): string {
   if (!quote) {
     return "—"
   }
 
-  return quote.currency === "ILS" ? `₪${quote.amount}` : quote.amount
+  // The Academy of the Hebrew Language places ₪ to the left of the number and
+  // without a space, exactly as $ is placed, even though right-to-left text
+  // then shows it after the digits.
+  return quote.currency === "ILS"
+    ? `₪${ILS_AMOUNT_FORMAT.format(Number(quote.amount))}`
+    : quote.amount
 }
 
 function SummaryRow({
