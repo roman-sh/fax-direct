@@ -1,17 +1,18 @@
 import "server-only"
 
 import { getCloudflareContext } from "@opennextjs/cloudflare"
+import currency from "currency.js"
 
+import { getMarketConfig } from "@/server/config/market-config.service"
 import { startFaxDeliveryAttempt } from "@/server/fax/fax-delivery.service"
+import { PayMeService } from "@/server/payment/payme.service"
 import type { FaxSessionData } from "@/shared/session/fax-session.types"
-import { POSTHOOK_SCHEDULE_URL } from "@/config"
 
-const PAYMENT_WEBHOOK_PATH = "/api/webhooks/payment"
-const PAYMENT_CONFIRMATION_DELAY = "5s"
+let payMeService: PayMeService | undefined
 
 export type PaymentServiceErrorCode =
   | "NOT_READY"
-  | "SCHEDULING_FAILED"
+  | "SALE_CREATION_FAILED"
 
 export class PaymentServiceError extends Error {
   constructor(readonly code: PaymentServiceErrorCode) {
@@ -20,38 +21,59 @@ export class PaymentServiceError extends Error {
   }
 }
 
-/** Marks the current session pending and schedules its confirmation callback. */
+/** Marks the current session pending and creates its hosted PayMe sale. */
 export async function startFaxPayment(
   sessionId: string
 ): Promise<FaxSessionData> {
   const { env } = getCloudflareContext()
   const session = env.FAX_SESSIONS.getByName(sessionId)
-  const result = await session.startPayment()
 
-  if (!result) {
+  // The per-session Durable Object owns the atomic transition to `pending`.
+  // This keeps two simultaneous Pay requests from both starting a new sale.
+  const paymentStart = await session.startPayment()
+
+  // A null response means the session is missing its document, recipient, or
+  // server-owned quote, so payment cannot start yet.
+  if (!paymentStart) {
     throw new PaymentServiceError("NOT_READY")
   }
 
-  if (!result.started) {
-    return result.session
+  // An existing pending or paid payment makes the request idempotent. Return
+  // the current session without creating a second PayMe sale.
+  if (!paymentStart.started) {
+    return paymentStart.session
   }
 
+  // Only the request that changed the Durable Object to `pending` reaches
+  // PayMe and creates the external sale.
   try {
-    await schedulePaymentConfirmation(sessionId, env.POSTHOOK_API_KEY)
+    const config = await getMarketConfig("IL")
+    // startPayment succeeds only when the server-owned quote exists.
+    const quote = paymentStart.session.quote!
+    // PayMe accepts an integer in minor units rather than a decimal price.
+    const amountMinorUnits = currency(quote.amount).intValue
+
+    await getPayMeService(env).generateSale({
+      amountMinorUnits,
+      callbackUrl: env.PAYME_CALLBACK_URL,
+      language: config.payment.language,
+      productName: config.payment.productName,
+      transactionId: sessionId,
+    })
   } catch (error) {
     await session.cancelPendingPayment()
-    console.error("Could not schedule payment confirmation:", error)
-    throw new PaymentServiceError("SCHEDULING_FAILED")
+    console.error("Could not create PayMe sale:", error)
+    throw new PaymentServiceError("SALE_CREATION_FAILED")
   }
 
-  return result.session
+  return paymentStart.session
 }
 
 /**
- * Applies a delayed payment callback and durably ensures its delivery Workflow
- * exists. Repeated callbacks are safe: the delivery gate re-issues the same
- * attempt while `preparing` (idempotent instance creation) and declines once
- * the delivery is in flight.
+ * Applies a payment confirmation callback and durably ensures its delivery
+ * Workflow exists. Repeated callbacks are safe: the delivery gate re-issues
+ * the same attempt while `preparing` (idempotent instance creation) and
+ * declines once the delivery is in flight.
  */
 export async function confirmFaxPayment(
   sessionId: string
@@ -68,30 +90,12 @@ export async function confirmFaxPayment(
   return (await startFaxDeliveryAttempt(sessionId)) ?? session
 }
 
-async function schedulePaymentConfirmation(
-  sessionId: string,
-  apiKey: string
-): Promise<void> {
-  if (!apiKey) {
-    throw new Error("POSTHOOK_API_KEY is not configured.")
-  }
+/** Reuses the stateless PayMe client within the current Worker isolate. */
+function getPayMeService(env: CloudflareEnv): PayMeService {
+  payMeService ??= new PayMeService(
+    env.PAYME_SELLER_ID,
+    env.PAYME_BASE_URL
+  )
 
-  const response = await fetch(POSTHOOK_SCHEDULE_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": apiKey,
-    },
-    body: JSON.stringify({
-      path: PAYMENT_WEBHOOK_PATH,
-      postIn: PAYMENT_CONFIRMATION_DELAY,
-      data: {
-        sessionId,
-      },
-    }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Posthook scheduling failed with ${response.status}.`)
-  }
+  return payMeService
 }

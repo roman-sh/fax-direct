@@ -2,7 +2,7 @@
  * Starts payment for the signed browser session.
  *
  * The Durable Object verifies that the document, recipient, and quote exist,
- * records a pending payment, and Posthook schedules the asynchronous callback.
+ * records a pending payment, and PayMe creates the hosted checkout.
  */
 import {
   PaymentServiceError,

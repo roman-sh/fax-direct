@@ -106,5 +106,9 @@
    * Note: Use secrets to store sensitive data.
    * https://developers.cloudflare.com/workers/configuration/secrets/
    */
-  // "vars": {  "MY_VARIABLE": "production_value" }
+  "vars": {
+    // PayMe sandbox configuration. Replace for production.
+    "PAYME_BASE_URL": "https://sandbox.payme.io/api",
+    "PAYME_CALLBACK_URL": "https://fax.direct/api/webhooks/payment",
+  },
 }
