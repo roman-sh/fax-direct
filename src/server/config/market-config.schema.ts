@@ -8,6 +8,12 @@ export const marketConfigSchema = z
         maxFileBytes: z.number().int().positive(),
       })
       .strict(),
+    payment: z
+      .object({
+        productName: z.string().min(1),
+        language: z.string().min(1),
+      })
+      .strict(),
     price: z
       .object({
         amount: z

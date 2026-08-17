@@ -35,6 +35,25 @@ InterFAX submission itself is attempted once. If it fails, the Workflow marks
 the session fax as failed and stops; it does not automatically risk sending a
 second real fax. Manual retry UX is the next product layer.
 
+### PayMe payment flow
+
+The PayMe integration being implemented will replace the temporary Posthook
+simulation with this flow:
+
+1. The customer presses Pay, and the browser sends `POST /api/session/payment`.
+2. The endpoint restores the signed browser session and calls
+   `startFaxPayment()` with its session ID.
+3. The session Durable Object records the payment as pending.
+4. `startFaxPayment()` loads the session's market configuration and calls
+   `PayMeService.generateSale()` with the price and hosted-checkout details.
+5. The PayMe service creates the sale and validates the provider response.
+6. The provider identifiers are stored in D1, while the checkout URL is saved
+   in the Durable Object's browser-facing session state.
+7. The Durable Object broadcasts the updated session, and the browser displays
+   the Bit checkout. A refresh restores the same checkout from session state.
+8. PayMe's signed webhook confirms payment, changes the session from pending to
+   paid, and starts the fax-delivery Workflow.
+
 ## Architecture
 
 | Component | Responsibility |
