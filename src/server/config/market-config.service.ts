@@ -1,5 +1,3 @@
-import "server-only"
-
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 
 import {
@@ -16,16 +14,18 @@ export class MarketConfigError extends Error {
   }
 }
 
+/**
+ * Loads one validated market configuration. Next.js callers use the default
+ * OpenNext context; Workflows supply their KV binding explicitly.
+ */
 export async function getMarketConfig(
-  market: MarketCode = "IL"
+  market: MarketCode = "IL",
+  namespace: KVNamespace = getCloudflareContext().env.MARKET_CONFIG
 ): Promise<MarketConfig> {
   let value: unknown
 
   try {
-    value = await getCloudflareContext().env.MARKET_CONFIG.get(
-      `market:${market}`,
-      "json"
-    )
+    value = await namespace.get(`market:${market}`, "json")
   } catch (error) {
     throw new MarketConfigError(
       `Could not read configuration for market ${market}.`,
