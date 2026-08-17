@@ -8,6 +8,7 @@ import { isWebSocketUpgradeRequest } from "./src/shared/websocket/is-websocket-u
 export { FaxSession } from "./src/server/session/fax-session.durable-object"
 export { FaxPollingCoordinator } from "./src/server/fax/fax-polling-coordinator.durable-object"
 export { FaxDeliveryWorkflow } from "./src/server/fax/fax-delivery.workflow"
+export { PaymentWorkflow } from "./src/server/payment/payment.workflow"
 
 /**
  * This custom Worker is the public entry point for the entire application.

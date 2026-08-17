@@ -55,6 +55,11 @@
       "binding": "FAX_DELIVERY_WORKFLOW",
       "class_name": "FaxDeliveryWorkflow",
     },
+    {
+      "name": "payment",
+      "binding": "PAYMENT_WORKFLOW",
+      "class_name": "PaymentWorkflow",
+    },
   ],
   "durable_objects": {
     "bindings": [
