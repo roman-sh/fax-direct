@@ -1,13 +1,15 @@
 /**
- * Provides the application's typed write boundary for PayMe sale records in
- * D1. The payment Workflow creates the row; later webhook handling will update
- * its lifecycle status through this repository.
+ * Provides the application's typed D1 boundary for PayMe sale records. The
+ * payment endpoint reads the current lifecycle state, the Workflow creates the
+ * row, and later webhook handling will update it through this repository.
  */
+import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/d1"
 
 import {
   paymentTable,
   type NewPaymentRow,
+  type PaymentRow,
 } from "@/server/payment/payment.schema"
 
 type PaymentDatabase = ReturnType<typeof createPaymentDatabase>
@@ -34,6 +36,15 @@ export class PaymentRepository {
 
   constructor(database: D1Database) {
     this.db = createPaymentDatabase(database)
+  }
+
+  /** Finds the payment currently associated with a browser session. */
+  async findBySessionId(sessionId: string): Promise<PaymentRow | undefined> {
+    return this.db
+      .select()
+      .from(paymentTable)
+      .where(eq(paymentTable.sessionId, sessionId))
+      .get()
   }
 
   /** Stores one successfully created PayMe sale with pending status. */
