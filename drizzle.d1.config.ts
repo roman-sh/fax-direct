@@ -4,5 +4,8 @@ import { defineConfig } from "drizzle-kit"
 export default defineConfig({
   dialect: "sqlite",
   out: "./drizzle/d1",
-  schema: "./src/server/fax/fax-transmission.schema.ts",
+  schema: [
+    "./src/server/fax/fax-transmission.schema.ts",
+    "./src/server/payment/payment.schema.ts",
+  ],
 })
