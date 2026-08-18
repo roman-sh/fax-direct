@@ -2,7 +2,8 @@
  * Owns the durable payment-creation sequence.
  *
  * The endpoint establishes one instance per browser session. Durable steps
- * load the server-owned checkout inputs and create the hosted PayMe sale.
+ * load the server-owned checkout inputs, create the hosted PayMe sale, and
+ * persist its provider details before they are published to the browser.
  */
 import {
   WorkflowEntrypoint,
@@ -17,6 +18,7 @@ import {
   type GeneratePayMeSaleInput,
   type GeneratePayMeSaleResult,
 } from "@/server/payment/payme.service"
+import { PaymentRepository } from "@/server/payment/payment.repository"
 
 export type PaymentWorkflowParams = {
   sessionId: string
@@ -54,9 +56,7 @@ export class PaymentWorkflow extends WorkflowEntrypoint<
 
     // PayMe sale creation is an external side effect. A timeout or lost
     // response is ambiguous, so the Workflow must not retry it automatically.
-    // Until D1 persistence is added, returning the validated sale details makes
-    // them inspectable as Workflow output; they do not reach the HTTP endpoint.
-    return step.do(
+    const sale = await step.do(
       "create-payme-sale",
       {
         timeout: "30 seconds",
@@ -71,5 +71,25 @@ export class PaymentWorkflow extends WorkflowEntrypoint<
           this.env.PAYME_BASE_URL
         ).generateSale(saleInput)
     )
+
+    // D1 persistence is safe to replay: the session primary key makes a repeat
+    // insert a no-op while this Workflow continues with its cached PayMe sale.
+    await step.do("save-payment-to-d1", async () => {
+      await new PaymentRepository(this.env.APP_DATABASE).create({
+        sessionId,
+        payMeSaleId: sale.payMeSaleId,
+        payMeSaleCode: sale.payMeSaleCode,
+        checkoutUrl: sale.checkoutUrl,
+        amountMinorUnits: sale.price,
+        currency: sale.currency,
+        paymentMethod: sale.paymentMethod,
+      })
+
+      return null
+    })
+
+    // The validated sale remains inspectable as Workflow output; it does not
+    // reach the HTTP endpoint or browser until the next integration step.
+    return sale
   }
 }
