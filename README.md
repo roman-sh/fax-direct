@@ -20,15 +20,20 @@ and status-mapping rules.
    stores the PDF in private R2, and saves its metadata in the session.
 4. The recipient endpoint validates and normalizes the Israeli fax number,
    then stores the server-owned quote.
-5. Posthook currently simulates a payment provider callback.
-6. A confirmed payment starts one Cloudflare Workflow identified by the
+5. The payment endpoint starts one PayMe creation Workflow identified by the
    session ID.
-7. The Workflow loads the PDF from R2, submits it to InterFAX, records the
+6. The Workflow loads the server-owned quote and market settings, creates the
+   PayMe sale, validates its response, and persists the hosted checkout in D1.
+7. Publishing the checkout to the browser and replacing the legacy callback
+   handler with signed PayMe confirmation are being implemented next.
+8. A confirmed payment starts one Cloudflare Workflow identified by the
+   session ID.
+9. The Workflow loads the PDF from R2, submits it to InterFAX, records the
    transaction in D1, and starts the global polling loop.
-8. Every 10 seconds, the polling coordinator batches active InterFAX
+10. Every 10 seconds, the polling coordinator batches active InterFAX
    transactions, updates D1, and projects user-facing progress into the
    matching session Durable Object.
-9. The Durable Object broadcasts its authoritative session snapshot over the
+11. The Durable Object broadcasts its authoritative session snapshot over the
    browser's PartySocket connection.
 
 InterFAX submission itself is attempted once. If it fails, the Workflow marks
@@ -37,22 +42,29 @@ second real fax. Manual retry UX is the next product layer.
 
 ### PayMe payment flow
 
-The PayMe integration being implemented will replace the temporary Posthook
-simulation with this flow:
+The PayMe integration is being implemented sequentially with this final flow:
 
 1. The customer presses Pay, and the browser sends `POST /api/session/payment`.
 2. The endpoint restores the signed browser session and calls
    `startFaxPayment()` with its session ID.
-3. The session Durable Object records the payment as pending.
-4. `startFaxPayment()` loads the session's market configuration and calls
-   `PayMeService.generateSale()` with the price and hosted-checkout details.
-5. The PayMe service creates the sale and validates the provider response.
-6. The provider identifiers are stored in D1, while the checkout URL is saved
-   in the Durable Object's browser-facing session state.
-7. The Durable Object broadcasts the updated session, and the browser displays
-   the Bit checkout. A refresh restores the same checkout from session state.
-8. PayMe's signed webhook confirms payment, changes the session from pending to
-   paid, and starts the fax-delivery Workflow.
+3. `startFaxPayment()` reads the session's D1 payment state. No row creates the
+   deterministic Payment Workflow, `failed` restarts it, and `pending` or
+   `paid` makes the request a safe no-op.
+4. The Workflow loads the session's server-owned quote and localized market
+   configuration.
+5. A durable step calls `PayMeService.generateSale()`. A retry may leave an
+   unused provider sale when a response is lost, but no checkout is exposed
+   until one sale has been adopted in D1.
+6. D1 inserts the sale when no payment exists, replaces a `failed` payment, or
+   retains the existing row when it is already `pending` or `paid`. The
+   retained row is the application's authoritative payment.
+7. The Workflow publishes that row's checkout URL and `pending` state to the
+   session Durable Object, which broadcasts it over the existing WebSocket.
+8. The browser displays the Bit checkout. Refreshing restores the same URL from
+   the Durable Object's session state.
+9. PayMe's signed webhook is validated, changes D1 and the session to `paid`,
+   and starts the fax-delivery Workflow. Signature verification remains blocked
+   on PayMe's canonical signing instructions.
 
 ## Architecture
 
@@ -64,17 +76,18 @@ simulation with this flow:
 | Workers KV | Editable Israel market limits and pricing without redeployment |
 | R2 | Private, temporary PDF storage with a 24-hour lifecycle rule |
 | `FaxSession` Durable Object | Per-session SQLite state and live WebSocket snapshots |
+| `PaymentWorkflow` | Durable PayMe sale creation, persistence, and browser-state publication |
 | `FaxDeliveryWorkflow` | Durable paid-fax orchestration through InterFAX submission |
-| D1 | Globally queryable InterFAX transaction records |
+| D1 | Authoritative PayMe sale records and globally queryable InterFAX transactions |
 | `FaxPollingCoordinator` Durable Object | Owns the single ten-second polling alarm |
+| PayMe | Hosted payment checkout and asynchronous payment confirmation |
 | InterFAX | Fax submission and delivery status provider |
-| Posthook | Temporary payment-callback simulator; not the production gateway |
 
 The storage responsibilities are deliberately separate:
 
 - The session Durable Object contains only browser-facing facts.
-- D1 contains provider transaction IDs and numeric InterFAX state so one
-  coordinator can find all active transmissions.
+- D1 contains payment-provider records plus InterFAX transaction IDs and
+  numeric fax state so global workflows and coordinators can query them.
 - R2 contains the PDF bytes; neither Workflow parameters nor Durable Object
   SQLite contain the document itself.
 - The Workflow executes the durable sequence but does not become the browser's
@@ -90,7 +103,7 @@ The storage responsibilities are deliberately separate:
 | `src/server/pdf` | Authoritative PDF inspection |
 | `src/server/recipient` | Backend recipient validation |
 | `src/server/quote` | Server-owned price calculation |
-| `src/server/payment` | Current simulated payment orchestration |
+| `src/server/payment` | PayMe boundary, Payment Workflow, and D1 payment persistence |
 | `src/server/fax` | InterFAX client, Workflow, D1 repository, polling, and mappings |
 | `src/shared` | Types and validation shared safely with browser code |
 | `config` | Validated market configuration source |
@@ -189,12 +202,13 @@ Local secrets are read from the ignored `.dev.vars` file. Production secrets
 are stored through Wrangler. Current secret bindings include:
 
 - `SESSION_COOKIE_PASSWORD`
-- `POSTHOOK_API_KEY`
 - `INTERFAX_USERNAME`
 - `INTERFAX_PASSWORD`
+- `PAYME_SELLER_ID`
 
 Cloudflare resource bindings are declared in `wrangler.jsonc`: KV, private R2,
-D1, both Durable Object classes, and the delivery Workflow.
+D1, both Durable Object classes, the payment Workflow, and the delivery
+Workflow. PayMe's base URL and callback URL are environment variables there.
 
 ### InterFAX transport
 
