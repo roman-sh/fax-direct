@@ -17,7 +17,7 @@ CREATE TABLE `fax_session` (
 	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	CONSTRAINT "fax_session_singleton" CHECK("fax_session"."id" = 1),
 	CONSTRAINT "fax_session_quote_currency" CHECK("fax_session"."quote_currency" IS NULL OR "fax_session"."quote_currency" = 'ILS'),
-	CONSTRAINT "fax_session_payment_status" CHECK("fax_session"."payment_status" IS NULL OR "fax_session"."payment_status" IN ('pending', 'paid')),
+	CONSTRAINT "fax_session_payment_status" CHECK("fax_session"."payment_status" IS NULL OR "fax_session"."payment_status" IN ('pending', 'paid', 'failed')),
 	CONSTRAINT "fax_session_fax_status" CHECK("fax_session"."fax_status" IS NULL OR "fax_session"."fax_status" IN ('preparing', 'queued', 'sending', 'finalizing', 'service_delayed', 'delivered', 'failed')),
 	CONSTRAINT "fax_session_fax_pages_sent" CHECK("fax_session"."fax_pages_sent" IS NULL OR "fax_session"."fax_pages_sent" >= 0),
 	CONSTRAINT "fax_session_fax_pages_submitted" CHECK("fax_session"."fax_pages_submitted" IS NULL OR "fax_session"."fax_pages_submitted" >= 0),

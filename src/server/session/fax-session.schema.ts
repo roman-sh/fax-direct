@@ -32,7 +32,11 @@ export const faxSessionTable = sqliteTable(
       enum: ["ILS"],
     }),
     paymentStatus: text("payment_status", {
-      enum: [PAYMENT_STATUS.PENDING, PAYMENT_STATUS.PAID],
+      enum: [
+        PAYMENT_STATUS.PENDING,
+        PAYMENT_STATUS.PAID,
+        PAYMENT_STATUS.FAILED,
+      ],
     }),
     // This is our browser-facing lifecycle, not InterFAX's numeric status.
     faxStatus: text("fax_status", {
@@ -61,7 +65,7 @@ export const faxSessionTable = sqliteTable(
     ),
     check(
       "fax_session_payment_status",
-      sql`${table.paymentStatus} IS NULL OR ${table.paymentStatus} IN ('pending', 'paid')`
+      sql`${table.paymentStatus} IS NULL OR ${table.paymentStatus} IN ('pending', 'paid', 'failed')`
     ),
     check(
       "fax_session_fax_status",
