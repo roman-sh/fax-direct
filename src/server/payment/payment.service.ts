@@ -32,18 +32,37 @@ export async function startFaxPayment(
       return
     }
 
-    // No D1 payment exists yet. createBatch makes repeated requests with this
-    // deterministic instance id idempotent by skipping an existing Workflow.
-    case undefined:
-      await env.PAYMENT_WORKFLOW.createBatch([
-        {
-          id: sessionId,
-          params: {
-            sessionId,
-          } satisfies PaymentWorkflowParams,
-        },
-      ])
+    // Without a D1 sale, the Workflow distinguishes a first Pay request from
+    // an active or failed creation: create, leave running, or restart.
+    case undefined: {
+      let workflow: WorkflowInstance
+
+      try {
+        // Cloudflare throws instead of returning null when instance doesn't exist.
+        workflow = await env.PAYMENT_WORKFLOW.get(sessionId)
+      } catch {
+        // createBatch guarantees a concurrent create with this ID is safely skipped.
+        await env.PAYMENT_WORKFLOW.createBatch([
+          {
+            id: sessionId,
+            params: {
+              sessionId,
+            } satisfies PaymentWorkflowParams,
+          },
+        ])
+        return
+      }
+
+      const { status } = await workflow.status()
+
+      // Restart only failed workflow
+      if (status === "errored") {
+        await workflow.restart()
+      }
+
+      // Ignore the request for all other states
       return
+    }
 
     default:
       throw new Error("Unsupported payment status.")
