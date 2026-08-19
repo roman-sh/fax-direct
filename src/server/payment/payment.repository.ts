@@ -3,10 +3,11 @@
  * payment endpoint reads the current lifecycle state, the Workflow creates the
  * row, and later webhook handling will update it through this repository.
  */
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/d1"
 
 import {
+  PAYMENT_STATUS,
   paymentTable,
   type NewPaymentRow,
   type PaymentRow,
@@ -49,13 +50,20 @@ export class PaymentRepository {
 
   /** Stores one successfully created PayMe sale with pending status. */
   async create(payment: CreatePayment): Promise<void> {
-    // A Workflow step may run again when D1 committed the insert but
-    // Cloudflare did not persist the step checkpoint. The session primary key
-    // turns that replay into a no-op instead of a duplicate-row error.
+    // Another Pay attempt replaces a failed sale. Pending and paid rows remain
+    // unchanged, so a repeated Workflow step cannot replace an active payment.
     await this.db
       .insert(paymentTable)
       .values(payment)
-      .onConflictDoNothing({ target: paymentTable.sessionId })
+      .onConflictDoUpdate({
+        target: paymentTable.sessionId,
+        set: {
+          ...payment,
+          status: PAYMENT_STATUS.PENDING,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        },
+        setWhere: eq(paymentTable.status, PAYMENT_STATUS.FAILED),
+      })
       .run()
   }
 }
