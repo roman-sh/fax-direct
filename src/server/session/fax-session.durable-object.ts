@@ -280,6 +280,23 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     })
   }
 
+  /** Stores the checkout URL, marks payment pending, and broadcasts the session. */
+  async setCheckout(checkoutUrl: string): Promise<void> {
+    await this.updateSession(() => {
+      this.db
+        .update(faxSessionTable)
+        .set({
+          paymentStatus: PAYMENT_STATUS.PENDING,
+          checkoutUrl,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(faxSessionTable.id, SESSION_ROW_ID))
+        .run()
+
+      return true
+    })
+  }
+
   /**
    * Confirms a pending payment. Already-paid callbacks are idempotent, while a
    * callback for a session that is not pending returns null.
