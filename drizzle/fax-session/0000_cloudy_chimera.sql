@@ -9,6 +9,7 @@ CREATE TABLE `fax_session` (
 	`quote_amount` text,
 	`quote_currency` text,
 	`payment_status` text,
+	`checkout_url` text,
 	`fax_status` text,
 	`fax_pages_sent` integer,
 	`fax_pages_submitted` integer,

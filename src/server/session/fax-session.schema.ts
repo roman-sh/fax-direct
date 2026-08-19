@@ -38,6 +38,7 @@ export const faxSessionTable = sqliteTable(
         PAYMENT_STATUS.FAILED,
       ],
     }),
+    checkoutUrl: text("checkout_url"),
     // This is our browser-facing lifecycle, not InterFAX's numeric status.
     faxStatus: text("fax_status", {
       enum: FAX_PROGRESS_STATUSES,

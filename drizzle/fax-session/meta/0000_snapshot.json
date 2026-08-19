@@ -77,6 +77,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "checkout_url": {
+          "name": "checkout_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "fax_status": {
           "name": "fax_status",
           "type": "text",
