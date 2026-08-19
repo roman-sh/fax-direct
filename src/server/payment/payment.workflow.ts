@@ -19,6 +19,7 @@ import {
   type GeneratePayMeSaleResult,
 } from "@/server/payment/payme.service"
 import { PaymentRepository } from "@/server/payment/payment.repository"
+import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
 
 export type PaymentWorkflowParams = {
   sessionId: string
@@ -54,23 +55,33 @@ export class PaymentWorkflow extends WorkflowEntrypoint<
       } satisfies GeneratePayMeSaleInput
     })
 
-    // PayMe sale creation is an external side effect. A timeout or lost
-    // response is ambiguous, so the Workflow must not retry it automatically.
-    const sale = await step.do(
-      "create-payme-sale",
-      {
-        timeout: "30 seconds",
-        retries: {
-          limit: 0,
-          delay: 0,
+    let sale: GeneratePayMeSaleResult
+
+    try {
+      // A timeout or lost response may leave an unused sale at PayMe. Workflow
+      // retries are still preferable here: no sale is exposed to the customer
+      // until a successful response continues into the D1 persistence step.
+      sale = await step.do(
+        "create-payme-sale",
+        {
+          timeout: "30 seconds",
         },
-      },
-      async () =>
-        new PayMeService(
-          this.env.PAYME_SELLER_ID,
-          this.env.PAYME_BASE_URL
-        ).generateSale(saleInput)
-    )
+        async () =>
+          new PayMeService(
+            this.env.PAYME_SELLER_ID,
+            this.env.PAYME_BASE_URL
+          ).generateSale(saleInput)
+      )
+    } catch (error) {
+      // PayMe exhausted its retries before producing a sale. Publish the
+      // browser-facing failure through the session's existing WebSocket path.
+      await this.env.FAX_SESSIONS
+        .getByName(sessionId)
+        .setPaymentStatus(PAYMENT_STATUS.FAILED)
+
+      // Preserve the provider failure as the Workflow's terminal error.
+      throw error
+    }
 
     // D1 persistence is safe to replay: the session primary key makes a repeat
     // insert a no-op while this Workflow continues with its cached PayMe sale.

@@ -1,6 +1,7 @@
 export const PAYMENT_STATUS = {
   PENDING: "pending",
   PAID: "paid",
+  FAILED: "failed",
 } as const
 
 export type FaxPaymentStatus =
