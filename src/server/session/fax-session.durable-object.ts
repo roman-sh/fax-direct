@@ -20,6 +20,7 @@ import {
 import {
   FAX_STATUS,
   PAYMENT_STATUS,
+  type FaxPaymentStatus,
 } from "@/shared/session/fax-session-status"
 import { isWebSocketUpgradeRequest } from "@/shared/websocket/is-websocket-upgrade-request"
 
@@ -260,6 +261,22 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
         .get()
 
       return updated !== undefined
+    })
+  }
+
+  /** Updates and broadcasts the browser-facing payment status. */
+  async setPaymentStatus(status: FaxPaymentStatus): Promise<void> {
+    await this.updateSession(() => {
+      this.db
+        .update(faxSessionTable)
+        .set({
+          paymentStatus: status,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(faxSessionTable.id, SESSION_ROW_ID))
+        .run()
+
+      return true
     })
   }
 
