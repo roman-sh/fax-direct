@@ -99,8 +99,16 @@ export class PaymentWorkflow extends WorkflowEntrypoint<
       return null
     })
 
-    // The validated sale remains inspectable as Workflow output; it does not
-    // reach the HTTP endpoint or browser until the next integration step.
+    // Expose the checkout only after its PayMe sale is durably stored in D1.
+    await step.do("set-session-checkout", async () => {
+      await this.env.FAX_SESSIONS
+        .getByName(sessionId)
+        .setCheckout(sale.checkoutUrl)
+
+      return null
+    })
+
+    // The validated sale remains inspectable as Workflow output.
     return sale
   }
 }
