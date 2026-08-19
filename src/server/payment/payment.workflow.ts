@@ -58,12 +58,15 @@ export class PaymentWorkflow extends WorkflowEntrypoint<
     let sale: GeneratePayMeSaleResult
 
     try {
-      // A timeout or lost response may leave an unused sale at PayMe. Workflow
-      // retries are still preferable here: no sale is exposed to the customer
-      // until a successful response continues into the D1 persistence step.
+      // The browser should receive a failure promptly instead of waiting for
+      // repeated PayMe attempts. A later Pay action can restart the Workflow.
       sale = await step.do(
         "create-payme-sale",
         {
+          retries: {
+            limit: 1,
+            delay: 0,
+          },
           timeout: "30 seconds",
         },
         async () =>
@@ -73,8 +76,8 @@ export class PaymentWorkflow extends WorkflowEntrypoint<
           ).generateSale(saleInput)
       )
     } catch (error) {
-      // PayMe exhausted its retries before producing a sale. Publish the
-      // browser-facing failure through the session's existing WebSocket path.
+      // PayMe failed before producing a sale. Publish the browser-facing
+      // failure through the session's existing WebSocket path.
       await this.env.FAX_SESSIONS
         .getByName(sessionId)
         .setPaymentStatus(PAYMENT_STATUS.failed)
