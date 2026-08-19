@@ -589,7 +589,7 @@ function quoteFromRow(row: FaxSessionRow): FaxSessionQuote | null {
   }
 }
 
-/** Converts the nullable SQL payment status into the nested session shape. */
+/** Converts the nullable SQL payment columns into the nested session shape. */
 function paymentFromRow(row: FaxSessionRow): FaxSessionPayment | null {
   if (row.paymentStatus === null) {
     return null
@@ -597,5 +597,6 @@ function paymentFromRow(row: FaxSessionRow): FaxSessionPayment | null {
 
   return {
     status: row.paymentStatus,
+    checkoutUrl: row.checkoutUrl,
   }
 }

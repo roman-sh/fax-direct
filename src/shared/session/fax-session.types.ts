@@ -22,6 +22,7 @@ export type FaxSessionQuote = {
 
 export type FaxSessionPayment = {
   status: FaxPaymentStatus
+  checkoutUrl: string | null
 }
 
 /**
