@@ -115,13 +115,13 @@ function HydratedFaxFlow({
   // Checking `fax` as well keeps restoration resilient if the payment field
   // ever disagrees with an existing fax record.
   const isDeliveryPhase =
-    session.payment?.status === PAYMENT_STATUS.PAID || session.fax !== null
+    session.payment?.status === PAYMENT_STATUS.paid || session.fax !== null
   // A paid session with no delivery and a non-zero attempt count can only mean
   // the customer answered a failure by editing the document or the number,
   // which cleared it. The summary returns so they can review what changed and
   // send again; nothing is charged, because the session is already paid.
   const isAwaitingResend =
-    session.payment?.status === PAYMENT_STATUS.PAID &&
+    session.payment?.status === PAYMENT_STATUS.paid &&
     session.fax === null &&
     session.deliveryAttempt > 0
   // A final failure reopens editing: the customer may replace the document or
@@ -356,7 +356,7 @@ function HydratedFaxFlow({
 
 function getRestoredStep(session: FaxSessionData): FaxStep {
   if (
-    session.payment?.status === PAYMENT_STATUS.PAID ||
+    session.payment?.status === PAYMENT_STATUS.paid ||
     session.fax !== null
   ) {
     return 3

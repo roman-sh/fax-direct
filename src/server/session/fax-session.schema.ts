@@ -8,7 +8,7 @@ import {
 
 import {
   FAX_PROGRESS_STATUSES,
-  PAYMENT_STATUS,
+  PAYMENT_STATUS_VALUES,
 } from "@/shared/session/fax-session-status"
 import { FAX_FAILURE_SEMANTIC_CODES } from "@/shared/session/fax-session.types"
 
@@ -32,11 +32,7 @@ export const faxSessionTable = sqliteTable(
       enum: ["ILS"],
     }),
     paymentStatus: text("payment_status", {
-      enum: [
-        PAYMENT_STATUS.PENDING,
-        PAYMENT_STATUS.PAID,
-        PAYMENT_STATUS.FAILED,
-      ],
+      enum: PAYMENT_STATUS_VALUES,
     }),
     checkoutUrl: text("checkout_url"),
     // This is our browser-facing lifecycle, not InterFAX's numeric status.
@@ -66,7 +62,9 @@ export const faxSessionTable = sqliteTable(
     ),
     check(
       "fax_session_payment_status",
-      sql`${table.paymentStatus} IS NULL OR ${table.paymentStatus} IN ('pending', 'paid', 'failed')`
+      sql`${table.paymentStatus} IS NULL OR ${table.paymentStatus} IN (${sql.raw(
+        PAYMENT_STATUS_VALUES.map((status) => `'${status}'`).join(", ")
+      )})`
     ),
     check(
       "fax_session_fax_status",

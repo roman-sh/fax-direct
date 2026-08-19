@@ -7,11 +7,11 @@ import { eq, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/d1"
 
 import {
-  PAYMENT_STATUS,
   paymentTable,
   type NewPaymentRow,
   type PaymentRow,
 } from "@/server/payment/payment.schema"
+import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
 
 type PaymentDatabase = ReturnType<typeof createPaymentDatabase>
 
@@ -59,10 +59,10 @@ export class PaymentRepository {
         target: paymentTable.sessionId,
         set: {
           ...payment,
-          status: PAYMENT_STATUS.PENDING,
+          status: PAYMENT_STATUS.pending,
           updatedAt: sql`CURRENT_TIMESTAMP`,
         },
-        setWhere: eq(paymentTable.status, PAYMENT_STATUS.FAILED),
+        setWhere: eq(paymentTable.status, PAYMENT_STATUS.failed),
       })
       .run()
   }

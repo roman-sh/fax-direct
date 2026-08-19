@@ -77,7 +77,7 @@ export class PaymentWorkflow extends WorkflowEntrypoint<
       // browser-facing failure through the session's existing WebSocket path.
       await this.env.FAX_SESSIONS
         .getByName(sessionId)
-        .setPaymentStatus(PAYMENT_STATUS.FAILED)
+        .setPaymentStatus(PAYMENT_STATUS.failed)
 
       // Preserve the provider failure as the Workflow's terminal error.
       throw error

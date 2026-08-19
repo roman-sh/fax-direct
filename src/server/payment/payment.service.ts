@@ -4,8 +4,8 @@ import { getCloudflareContext } from "@opennextjs/cloudflare"
 
 import { startFaxDeliveryAttempt } from "@/server/fax/fax-delivery.service"
 import { PaymentRepository } from "@/server/payment/payment.repository"
-import { PAYMENT_STATUS } from "@/server/payment/payment.schema"
 import type { PaymentWorkflowParams } from "@/server/payment/payment.workflow"
+import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
 import type { FaxSessionData } from "@/shared/session/fax-session.types"
 
 /** Creates or restarts the session's durable payment-creation Workflow. */
@@ -20,13 +20,13 @@ export async function startFaxPayment(
   switch (payment?.status) {
     // The frontend normally hides the Pay button for an existing checkout or
     // completed payment. Repeated requests are also safe on the server.
-    case PAYMENT_STATUS.PENDING:
-    case PAYMENT_STATUS.PAID:
+    case PAYMENT_STATUS.pending:
+    case PAYMENT_STATUS.paid:
       return
 
     // A failed payment already has a Workflow instance under this session ID.
     // Restarting it from the beginning creates the customer's new attempt.
-    case PAYMENT_STATUS.FAILED: {
+    case PAYMENT_STATUS.failed: {
       const workflow = await env.PAYMENT_WORKFLOW.get(sessionId)
       await workflow.restart()
       return

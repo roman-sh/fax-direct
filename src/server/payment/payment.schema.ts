@@ -5,17 +5,10 @@
 import { sql } from "drizzle-orm"
 import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
-export const PAYMENT_STATUS = {
-  PENDING: "pending",
-  PAID: "paid",
-  FAILED: "failed",
-} as const
-
-const PAYMENT_STATUS_VALUES = [
-  PAYMENT_STATUS.PENDING,
-  PAYMENT_STATUS.PAID,
-  PAYMENT_STATUS.FAILED,
-] as const
+import {
+  PAYMENT_STATUS,
+  PAYMENT_STATUS_VALUES,
+} from "@/shared/session/fax-session-status"
 
 /** One successfully created PayMe sale for one Fax Direct session. */
 export const paymentTable = sqliteTable(
@@ -40,7 +33,7 @@ export const paymentTable = sqliteTable(
       enum: PAYMENT_STATUS_VALUES,
     })
       .notNull()
-      .default(PAYMENT_STATUS.PENDING),
+      .default(PAYMENT_STATUS.pending),
     /** Time at which Fax Direct stored the created sale. */
     createdAt: text("created_at")
       .notNull()

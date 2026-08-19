@@ -286,7 +286,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
       this.db
         .update(faxSessionTable)
         .set({
-          paymentStatus: PAYMENT_STATUS.PENDING,
+          paymentStatus: PAYMENT_STATUS.pending,
           checkoutUrl,
           updatedAt: sql`CURRENT_TIMESTAMP`,
         })
@@ -304,7 +304,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   async confirmPayment(): Promise<FaxSessionData | null> {
     const current = await this.getSession()
 
-    if (current.payment?.status === PAYMENT_STATUS.PAID) {
+    if (current.payment?.status === PAYMENT_STATUS.paid) {
       return current
     }
 
@@ -312,13 +312,13 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
       const updated = this.db
         .update(faxSessionTable)
         .set({
-          paymentStatus: PAYMENT_STATUS.PAID,
+          paymentStatus: PAYMENT_STATUS.paid,
           updatedAt: sql`CURRENT_TIMESTAMP`,
         })
         .where(
           and(
             eq(faxSessionTable.id, SESSION_ROW_ID),
-            eq(faxSessionTable.paymentStatus, PAYMENT_STATUS.PENDING)
+            eq(faxSessionTable.paymentStatus, PAYMENT_STATUS.pending)
           )
         )
         .returning({ id: faxSessionTable.id })
@@ -359,7 +359,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     const document = documentFromRow(row)
 
     if (
-      row.paymentStatus !== PAYMENT_STATUS.PAID ||
+      row.paymentStatus !== PAYMENT_STATUS.paid ||
       document === null ||
       recipientFromRow(row) === null
     ) {

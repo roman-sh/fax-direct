@@ -56,7 +56,7 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
     const faxParams = await step.do("load-fax-params", async () => {
       const session = await sessionObject.getSession()
 
-      if (session.payment?.status !== PAYMENT_STATUS.PAID) {
+      if (session.payment?.status !== PAYMENT_STATUS.paid) {
         throw new Error(`Fax session ${sessionId} has not been paid.`)
       }
 

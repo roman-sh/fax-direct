@@ -75,7 +75,7 @@ function newSessionResponse(): Response {
 
 /** Paid work the customer has not received yet is the one thing worth keeping. */
 function canAbandon(session: FaxSessionData): boolean {
-  if (session.payment?.status !== PAYMENT_STATUS.PAID) {
+  if (session.payment?.status !== PAYMENT_STATUS.paid) {
     return true
   }
 

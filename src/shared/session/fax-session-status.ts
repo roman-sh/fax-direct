@@ -1,11 +1,14 @@
-export const PAYMENT_STATUS = {
-  PENDING: "pending",
-  PAID: "paid",
-  FAILED: "failed",
-} as const
+import { z } from "zod"
 
-export type FaxPaymentStatus =
-  (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS]
+export const PAYMENT_STATUS_VALUES = [
+  "pending",
+  "paid",
+  "failed",
+] as const
+
+export const paymentStatusSchema = z.enum(PAYMENT_STATUS_VALUES)
+export type FaxPaymentStatus = z.infer<typeof paymentStatusSchema>
+export const PAYMENT_STATUS = paymentStatusSchema.enum
 
 /**
  * Browser-facing fax progress. These states describe our business flow rather

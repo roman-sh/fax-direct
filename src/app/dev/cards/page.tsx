@@ -143,7 +143,9 @@ function Deck({
           fileSummary={DOCUMENT.originalName}
           recipientSummary="077-4448706"
           pageCount={DOCUMENT.pageCount}
-          payment={isResend ? { status: "paid" } : null}
+          payment={
+            isResend ? { status: "paid", checkoutUrl: null } : null
+          }
           paymentStart={{ status: "idle" }}
           quote={QUOTE}
           isResend={isResend}

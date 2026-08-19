@@ -47,8 +47,8 @@ export function PaymentStep({
   onSend,
 }: PaymentStepProps) {
   const isStarting = paymentStart.status === "starting"
-  const isPending = payment?.status === PAYMENT_STATUS.PENDING
-  const isPaid = payment?.status === PAYMENT_STATUS.PAID
+  const isPending = payment?.status === PAYMENT_STATUS.pending
+  const isPaid = payment?.status === PAYMENT_STATUS.paid
 
   return (
     <>
