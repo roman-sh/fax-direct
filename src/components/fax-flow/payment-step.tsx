@@ -72,12 +72,12 @@ export function PaymentStep({
         }
       />
       {checkoutUrl ? (
-        <CardContent className="min-h-0 flex-1 overflow-hidden p-0">
+        <CardContent className="flex min-h-0 flex-1 justify-center overflow-hidden p-4 sm:p-6">
           <iframe
             src={checkoutUrl}
             title="תשלום באמצעות Bit"
             allow="payment"
-            className="h-full w-full border-0"
+            className="h-full w-full max-w-96 rounded-lg border-0 bg-white"
           />
         </CardContent>
       ) : (

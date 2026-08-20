@@ -24,10 +24,11 @@ and status-mapping rules.
    session ID.
 6. The Workflow loads the server-owned quote and market settings, creates the
    PayMe sale, validates its response, and persists the hosted checkout in D1.
-7. Publishing the checkout to the browser and replacing the legacy callback
-   handler with signed PayMe confirmation are being implemented next.
-8. A confirmed payment starts one Cloudflare Workflow identified by the
-   session ID.
+7. The Workflow publishes the checkout and payment state through the session
+   Durable Object. Its WebSocket snapshot opens the Bit checkout and restores
+   the same state after a browser refresh.
+8. PayMe's form webhook validates a completed sale, marks D1 and the session
+   paid, broadcasts the transition to the browser, and starts fax delivery.
 9. The Workflow loads the PDF from R2, submits it to InterFAX, records the
    transaction in D1, and starts the global polling loop.
 10. Every 10 seconds, the polling coordinator batches active InterFAX
@@ -38,23 +39,24 @@ and status-mapping rules.
 
 InterFAX submission itself is attempted once. If it fails, the Workflow marks
 the session fax as failed and stops; it does not automatically risk sending a
-second real fax. Manual retry UX is the next product layer.
+second real fax. A final failure unlocks editing and offers a manual retry
+inside the same paid session.
 
 ### PayMe payment flow
 
-The PayMe integration is being implemented sequentially with this final flow:
+The PayMe integration currently follows this flow:
 
 1. The customer presses Pay, and the browser sends `POST /api/session/payment`.
 2. The endpoint restores the signed browser session and calls
    `startFaxPayment()` with its session ID.
-3. `startFaxPayment()` reads the session's D1 payment state. No row creates the
-   deterministic Payment Workflow, `failed` restarts it, and `pending` or
-   `paid` makes the request a safe no-op.
+3. `startFaxPayment()` reads the session's D1 payment state. `pending` or
+   `paid` makes the request a safe no-op, `failed` restarts the deterministic
+   Payment Workflow, and no row creates or resumes that session's instance.
 4. The Workflow loads the session's server-owned quote and localized market
    configuration.
-5. A durable step calls `PayMeService.generateSale()`. A retry may leave an
-   unused provider sale when a response is lost, but no checkout is exposed
-   until one sale has been adopted in D1.
+5. A durable step gives `PayMeService.generateSale()` one 30-second attempt.
+   Failure is published to the session immediately; a later Pay request may
+   restart the errored Workflow.
 6. D1 inserts the sale when no payment exists, replaces a `failed` payment, or
    retains the existing row when it is already `pending` or `paid`. The
    retained row is the application's authoritative payment.
@@ -62,9 +64,15 @@ The PayMe integration is being implemented sequentially with this final flow:
    session Durable Object, which broadcasts it over the existing WebSocket.
 8. The browser displays the Bit checkout. Refreshing restores the same URL from
    the Durable Object's session state.
-9. PayMe's signed webhook is validated, changes D1 and the session to `paid`,
-   and starts the fax-delivery Workflow. Signature verification remains blocked
-   on PayMe's canonical signing instructions.
+9. PayMe posts an `application/x-www-form-urlencoded` webhook. A valid
+   `sale-complete` notification changes D1 and the session to `paid`, replaces
+   the checkout with delivery status through WebSocket, and starts the
+   fax-delivery Workflow.
+
+Webhook signature verification is still pending PayMe's canonical signing
+instructions. `sale-failure` notifications are currently acknowledged and
+logged; publishing their failed state to D1 and the session remains follow-up
+work.
 
 ## Architecture
 
@@ -240,10 +248,15 @@ problems from the Cloudflare transport path.
 - The external fax-submission step has automatic retries disabled because it is
   not idempotent.
 - D1 insertion is replay-safe if Cloudflare repeats the persistence step.
-- Payment callbacks use a deterministic Workflow instance ID, preventing a
-  duplicate callback from starting a second initial delivery.
+- Payment creation uses one deterministic Workflow instance per session.
+- The session's atomic delivery gate and attempt-specific Workflow ID keep
+  repeated successful callbacks from starting duplicate fax deliveries.
 - WebSocket loss does not stop paid backend work; reconnecting restores the
   latest Durable Object snapshot.
+
+PayMe callbacks currently validate their form shape, successful notification
+state, and stored session identity. Cryptographic signature verification must
+be added before production payment traffic is accepted.
 
 The first release intentionally treats an InterFAX submission error as failed.
 Searching InterFAX by the session reference to reconcile an ambiguous timeout
