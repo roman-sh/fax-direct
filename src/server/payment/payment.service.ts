@@ -6,7 +6,6 @@ import { startFaxDeliveryAttempt } from "@/server/fax/fax-delivery.service"
 import { PaymentRepository } from "@/server/payment/payment.repository"
 import type { PaymentWorkflowParams } from "@/server/payment/payment.workflow"
 import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
-import type { FaxSessionData } from "@/shared/session/fax-session.types"
 
 /** Creates or restarts the session's durable payment-creation Workflow. */
 export async function startFaxPayment(
@@ -77,15 +76,17 @@ export async function startFaxPayment(
  */
 export async function confirmFaxPayment(
   sessionId: string
-): Promise<FaxSessionData | null> {
+): Promise<void> {
   const { env } = getCloudflareContext()
-  const session = await env.FAX_SESSIONS
+
+  // Persist the completed payment in the global D1 record.
+  await new PaymentRepository(env.APP_DATABASE).markPaid(sessionId)
+
+  // Publish the paid state to the browser through the session Durable Object.
+  await env.FAX_SESSIONS
     .getByName(sessionId)
     .confirmPayment()
 
-  if (!session) {
-    return null
-  }
-
-  return (await startFaxDeliveryAttempt(sessionId)) ?? session
+  // Start the durable fax-delivery sequence after payment is confirmed.
+  await startFaxDeliveryAttempt(sessionId)
 }

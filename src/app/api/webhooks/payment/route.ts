@@ -1,46 +1,49 @@
-/**
- * Receives the asynchronous payment confirmation scheduled through Posthook.
- * Posthook wraps the supplied payload inside `data`, which contains sessionId.
- */
+/** Receives PayMe's asynchronous sale callbacks. */
+import { payMeWebhookSchema } from "@/server/payment/payme-webhook.schema"
 import { confirmFaxPayment } from "@/server/payment/payment.service"
-import { normalizeFaxSessionId } from "@/shared/session/fax-session-id"
 
 export const runtime = "nodejs"
 
-type PosthookDelivery = {
-  data?: {
-    sessionId?: unknown
-  }
-}
-
 export async function POST(request: Request): Promise<Response> {
-  let body: PosthookDelivery
+  let formData: FormData
 
   try {
-    body = (await request.json()) as PosthookDelivery
+    formData = await request.formData()
   } catch {
-    return errorResponse("INVALID_REQUEST", "Invalid JSON body.", 400)
+    return errorResponse("INVALID_REQUEST", "Invalid form body.", 400)
   }
 
-  const sessionId =
-    typeof body.data?.sessionId === "string"
-      ? normalizeFaxSessionId(body.data.sessionId)
-      : null
+  const callback = payMeWebhookSchema.safeParse(Object.fromEntries(formData))
 
-  if (!sessionId) {
-    return errorResponse("INVALID_SESSION_ID", "Invalid sessionId.", 400)
+  if (!callback.success) {
+    return errorResponse("INVALID_CALLBACK", "Invalid PayMe callback.", 400)
   }
 
-  try {
-    await confirmFaxPayment(sessionId)
-    return new Response(null, { status: 204 })
-  } catch (error) {
-    console.error("Could not confirm fax payment:", error)
-    return errorResponse(
-      "PAYMENT_CONFIRMATION_FAILED",
-      "Could not confirm payment.",
-      503
-    )
+  switch (callback.data.type) {
+    case "sale-complete":
+      try {
+        await confirmFaxPayment(callback.data.sessionId)
+        return new Response(null, { status: 200 })
+      } catch (error) {
+        console.error("Could not confirm fax payment:", error)
+        return errorResponse(
+          "PAYMENT_CONFIRMATION_FAILED",
+          "Could not confirm payment.",
+          503
+        )
+      }
+
+    case "sale-failure":
+      // The failed-payment state will be persisted in a later step.
+      console.warn("PayMe reported a failed sale.")
+      return new Response(null, { status: 200 })
+
+    default:
+      console.info(
+        "Ignoring unsupported PayMe notification:",
+        callback.data.notifyType
+      )
+      return new Response(null, { status: 200 })
   }
 }
 

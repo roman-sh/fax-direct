@@ -298,17 +298,15 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   }
 
   /**
-   * Confirms a pending payment. Already-paid callbacks are idempotent, while a
-   * callback for a session that is not pending returns null.
+   * Confirms a pending payment. Already-paid callbacks are idempotent; any
+   * other payment state rejects confirmation.
    */
-  async confirmPayment(): Promise<FaxSessionData | null> {
+  async confirmPayment(): Promise<void> {
     const current = await this.getSession()
 
-    if (current.payment?.status === PAYMENT_STATUS.paid) {
-      return current
-    }
+    if (current.payment?.status === PAYMENT_STATUS.paid) return
 
-    return this.updateSession(() => {
+    const success = await this.updateSession(() => {
       const updated = this.db
         .update(faxSessionTable)
         .set({
@@ -326,6 +324,10 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
 
       return updated !== undefined
     })
+
+    if (!success) {
+      throw new Error("Session update to paid status failed.")
+    }
   }
 
   /**

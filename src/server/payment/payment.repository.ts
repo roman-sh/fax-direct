@@ -66,4 +66,16 @@ export class PaymentRepository {
       })
       .run()
   }
+
+  /** Marks the pending sale associated with a successful PayMe callback paid. */
+  async markPaid(sessionId: string): Promise<void> {
+    await this.db
+      .update(paymentTable)
+      .set({
+        status: PAYMENT_STATUS.paid,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .where(eq(paymentTable.sessionId, sessionId))
+      .run()
+  }
 }
