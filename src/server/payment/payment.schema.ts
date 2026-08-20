@@ -28,7 +28,10 @@ export const paymentTable = sqliteTable(
     currency: text("currency").notNull(),
     /** PayMe payment method used for the sale. */
     paymentMethod: text("payment_method").notNull(),
-    /** Current payment lifecycle state, beginning with the created sale. */
+    /**
+     * Current payment lifecycle state. D1 rows begin at "pending"; "initiated" is
+     * shared with the browser session but is never stored without a PayMe sale.
+     */
     status: text("status", {
       enum: PAYMENT_STATUS_VALUES,
     })

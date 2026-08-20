@@ -36,6 +36,14 @@ export class PaymentWorkflow extends WorkflowEntrypoint<
   ): Promise<GeneratePayMeSaleResult> {
     const { sessionId } = event.payload
 
+    // Persist that payment creation is running before contacting PayMe. This
+    // keeps the waiting state authoritative across browser refreshes.
+    await step.do("set-payment-initiated", async () => {
+      await this.env.FAX_SESSIONS
+        .getByName(sessionId)
+        .setPaymentStatus(PAYMENT_STATUS.initiated)
+    })
+
     const saleInput = await step.do("load-payment-input", async () => {
       const [session, config] = await Promise.all([
         this.env.FAX_SESSIONS.getByName(sessionId).getSession(),

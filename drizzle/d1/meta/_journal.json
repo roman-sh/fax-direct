@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1785963755684,
-      "tag": "0000_cloudy_hawkeye",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1786046024283,
-      "tag": "0001_true_richard_fisk",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1786327228824,
-      "tag": "0002_bright_smiling_tiger",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1787014565962,
-      "tag": "0003_bouncy_wrecking_crew",
+      "when": 1787218813170,
+      "tag": "0000_fat_firelord",
       "breakpoints": true
     }
   ]

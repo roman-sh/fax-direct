@@ -144,7 +144,7 @@
         },
         "fax_session_payment_status": {
           "name": "fax_session_payment_status",
-          "value": "\"fax_session\".\"payment_status\" IS NULL OR \"fax_session\".\"payment_status\" IN ('pending', 'paid', 'failed')"
+          "value": "\"fax_session\".\"payment_status\" IS NULL OR \"fax_session\".\"payment_status\" IN ('initiated', 'pending', 'paid', 'failed')"
         },
         "fax_session_fax_status": {
           "name": "fax_session_fax_status",

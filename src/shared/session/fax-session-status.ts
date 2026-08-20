@@ -1,6 +1,8 @@
 import { z } from "zod"
 
+/** Payment lifecycle shared by the browser session and persisted PayMe sale. */
 export const PAYMENT_STATUS_VALUES = [
+  "initiated",
   "pending",
   "paid",
   "failed",
