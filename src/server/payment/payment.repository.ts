@@ -67,15 +67,20 @@ export class PaymentRepository {
       .run()
   }
 
-  /** Marks the pending sale associated with a successful PayMe callback paid. */
+  /** Marks a stored sale paid and rejects callbacks for unknown sessions. */
   async markPaid(sessionId: string): Promise<void> {
-    await this.db
+    const record = await this.db
       .update(paymentTable)
       .set({
         status: PAYMENT_STATUS.paid,
         updatedAt: sql`CURRENT_TIMESTAMP`,
       })
       .where(eq(paymentTable.sessionId, sessionId))
-      .run()
+      .returning({ sessionId: paymentTable.sessionId })
+      .get()
+
+    if (!record) {
+      throw new Error(`Payment session ${sessionId} was not found.`)
+    }
   }
 }
