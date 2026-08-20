@@ -1,45 +1,38 @@
 "use client"
 
-import { useState } from "react"
-
-import type { FaxSessionData } from "@/shared/session/fax-session.types"
+import { useCallback, useState } from "react"
 
 export type PaymentStartState =
   | { status: "idle" }
   | { status: "starting" }
-  | { status: "ready" }
   | { status: "error"; message: string }
 
 type ErrorResponse = {
   message?: string
 }
 
-/** Starts server-owned payment and returns its authoritative pending session. */
+/** Starts server-owned payment while WebSocket snapshots carry its result. */
 export function usePayment() {
   const [state, setState] =
     useState<PaymentStartState>({ status: "idle" })
 
-  async function start(): Promise<FaxSessionData | null> {
+  async function start(): Promise<void> {
     setState({ status: "starting" })
 
     try {
       const response = await fetch("/api/session/payment", {
         method: "POST",
       })
-      const result = (await response.json()) as
-        | ErrorResponse
-        | FaxSessionData
 
       if (!response.ok) {
+        const result = (await response.json()) as ErrorResponse
+
         throw new Error(
-          "message" in result && result.message
+          result.message
             ? result.message
             : "לא הצלחנו לפתוח את התשלום. נסו שוב."
         )
       }
-
-      setState({ status: "ready" })
-      return result as FaxSessionData
     } catch (error) {
       setState({
         status: "error",
@@ -48,11 +41,15 @@ export function usePayment() {
             ? error.message
             : "לא הצלחנו לפתוח את התשלום. נסו שוב.",
       })
-      return null
     }
   }
 
+  const reset = useCallback(() => {
+    setState({ status: "idle" })
+  }, [])
+
   return {
+    reset,
     start,
     state,
   }

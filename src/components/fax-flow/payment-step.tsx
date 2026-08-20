@@ -46,131 +46,150 @@ export function PaymentStep({
   onStartPayment,
   onSend,
 }: PaymentStepProps) {
+  const isInitiated = payment?.status === PAYMENT_STATUS.initiated
   const isStarting = paymentStart.status === "starting"
   const isPending = payment?.status === PAYMENT_STATUS.pending
   const isPaid = payment?.status === PAYMENT_STATUS.paid
+  const isFailed = payment?.status === PAYMENT_STATUS.failed
+  const checkoutUrl = isPending ? payment.checkoutUrl : null
+  const isWaiting = isStarting || isInitiated || (isPending && !checkoutUrl)
 
   return (
     <>
       <CardHeading
         title="אישור ותשלום"
+        descriptionTone={isFailed ? "destructive" : "muted"}
         description={
           isPaid
             ? "התשלום התקבל."
-            : isPending
-              ? "ממתינים לאישור התשלום."
-              : "עברו על הפרטים לפני פתיחת התשלום."
+            : checkoutUrl
+              ? "השלימו את התשלום בחלון המאובטח."
+              : isWaiting
+                ? "פותחים את התשלום."
+                : isFailed
+                  ? "פתיחת התשלום נכשלה. נסו שוב."
+                  : "עברו על הפרטים לפני פתיחת התשלום."
         }
       />
-      <CardContent className="flex min-h-0 flex-1 flex-col p-7">
-        <dl className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-4">
-          <SummaryRow label="מסמך" value={fileSummary} ltr />
-          <SummaryRow label="מספר פקס" value={recipientSummary} ltr />
-          <SummaryRow
-            label="עמודים"
-            value={pageCount === null ? "—" : String(pageCount)}
+      {checkoutUrl ? (
+        <CardContent className="min-h-0 flex-1 overflow-hidden p-0">
+          <iframe
+            src={checkoutUrl}
+            title="תשלום באמצעות Bit"
+            allow="payment"
+            className="h-full w-full border-0"
           />
-          {/* A resend is already paid for, so quoting a price again would read
-              as a second charge. The line states what was settled instead. */}
-          <div className="mt-1 flex items-baseline gap-3 border-t border-border pt-4">
-            <dt className="font-medium">
-              {isResend ? "התשלום" : "סה״כ לתשלום"}
-            </dt>
-            <span
-              aria-hidden="true"
-              className="flex-1 border-b border-dotted border-border"
+        </CardContent>
+      ) : (
+        <CardContent className="flex min-h-0 flex-1 flex-col p-7">
+          <dl className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-4">
+            <SummaryRow label="מסמך" value={fileSummary} ltr />
+            <SummaryRow label="מספר פקס" value={recipientSummary} ltr />
+            <SummaryRow
+              label="עמודים"
+              value={pageCount === null ? "—" : String(pageCount)}
             />
-            {isResend ? (
-              <dd className="flex items-center gap-2 text-base font-semibold text-success">
-                <CheckCircle2 className="size-5" />
-                שולם
-              </dd>
-            ) : (
-              <dd dir="ltr" className="text-2xl font-bold tabular-nums">
-                {formatFaxQuote(quote)}
-              </dd>
-            )}
-          </div>
-        </dl>
-
-        <div className="flex items-end justify-between gap-4">
-          <Button
-            type="button"
-            variant="ghost"
-            size="lg"
-            disabled={isStarting}
-            onClick={onBack}
-          >
-            <ArrowRight data-icon="inline-start" />
-            חזרה
-          </Button>
-          <div className="flex flex-col items-center gap-2">
-            {isResend ? (
-              <Button
-                type="button"
-                size="lg"
-                disabled={isSending}
-                onClick={onSend}
-                className="min-w-40"
-              >
-                {isSending ? (
-                  <>
-                    <Spinner data-icon="inline-start" />
-                    שולחים…
-                  </>
-                ) : (
-                  <>
-                    שליחת הפקס
-                    <Send data-icon="inline-end" />
-                  </>
-                )}
-              </Button>
-            ) : isPaid ? (
-              <div className="flex min-w-40 items-center justify-center gap-2 text-base font-semibold text-success">
-                <CheckCircle2 className="size-5" />
-                התשלום התקבל
-              </div>
-            ) : (
-              <Button
-                type="button"
-                size="lg"
-                disabled={!quote || isStarting || isPending}
-                onClick={onStartPayment}
-                className="min-w-40"
-              >
-                {isStarting || isPending ? (
-                  <>
-                    <Spinner data-icon="inline-start" />
-                    ממתינים לאישור…
-                  </>
-                ) : (
-                  <>
-                    תשלום {formatFaxQuote(quote)}
-                    <Lock data-icon="inline-end" />
-                  </>
-                )}
-              </Button>
-            )}
-            {sendError ? (
-              <p role="alert" className="max-w-64 text-center text-sm text-destructive">
-                {sendError}
-              </p>
-            ) : null}
-            {paymentStart.status === "error" ? (
+            {/* A resend is already paid for, so quoting a price again would read
+                as a second charge. The line states what was settled instead. */}
+            <div className="mt-1 flex items-baseline gap-3 border-t border-border pt-4">
+              <dt className="font-medium">
+                {isResend ? "התשלום" : "סה״כ לתשלום"}
+              </dt>
               <span
-                role="alert"
-                className="max-w-64 text-center text-[0.7rem] text-destructive"
-              >
-                {paymentStart.message}
-              </span>
-            ) : isPending ? (
-              <span className="text-[0.7rem] text-muted-foreground">
-                האישור יוצג לאחר רענון העמוד בשלב זה
-              </span>
-            ) : null}
+                aria-hidden="true"
+                className="flex-1 border-b border-dotted border-border"
+              />
+              {isResend ? (
+                <dd className="flex items-center gap-2 text-base font-semibold text-success">
+                  <CheckCircle2 className="size-5" />
+                  שולם
+                </dd>
+              ) : (
+                <dd dir="ltr" className="text-2xl font-bold tabular-nums">
+                  {formatFaxQuote(quote)}
+                </dd>
+              )}
+            </div>
+          </dl>
+
+          <div className="flex items-end justify-between gap-4">
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              disabled={isWaiting}
+              onClick={onBack}
+            >
+              <ArrowRight data-icon="inline-start" />
+              חזרה
+            </Button>
+            <div className="flex flex-col items-center gap-2">
+              {isResend ? (
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={isSending}
+                  onClick={onSend}
+                  className="min-w-40"
+                >
+                  {isSending ? (
+                    <>
+                      <Spinner data-icon="inline-start" />
+                      שולחים…
+                    </>
+                  ) : (
+                    <>
+                      שליחת הפקס
+                      <Send data-icon="inline-end" />
+                    </>
+                  )}
+                </Button>
+              ) : isPaid ? (
+                <div className="flex min-w-40 items-center justify-center gap-2 text-base font-semibold text-success">
+                  <CheckCircle2 className="size-5" />
+                  התשלום התקבל
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={!quote || isWaiting}
+                  onClick={onStartPayment}
+                  className="min-w-40"
+                >
+                  {isWaiting ? (
+                    <>
+                      <Spinner data-icon="inline-start" />
+                      פותחים את התשלום…
+                    </>
+                  ) : (
+                    <>
+                      תשלום {formatFaxQuote(quote)}
+                      <Lock data-icon="inline-end" />
+                    </>
+                  )}
+                </Button>
+              )}
+              {sendError ? (
+                <p
+                  role="alert"
+                  className="max-w-64 text-center text-sm text-destructive"
+                >
+                  {sendError}
+                </p>
+              ) : null}
+              {paymentStart.status === "error" ? (
+                <span
+                  role="alert"
+                  className="max-w-64 text-center text-[0.7rem] text-destructive"
+                >
+                  {paymentStart.message}
+                </span>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </CardContent>
+        </CardContent>
+      )}
     </>
   )
 }

@@ -10,6 +10,7 @@ import {
   PaymentStep,
 } from "@/components/fax-flow/payment-step"
 import { RecipientStep } from "@/components/fax-flow/recipient-step"
+import type { FaxSessionPayment } from "@/shared/session/fax-session.types"
 
 const DOCUMENT = {
   objectKey: "PREVIEW-CARD-DECK",
@@ -53,6 +54,30 @@ export default function CardDeckPreview() {
       </PreviewCase>
 
       <PreviewCase
+        label="step 3 — payment initiated"
+        note="The Workflow is creating the hosted checkout; this state survives refreshes."
+      >
+        <Deck
+          initialStep={3}
+          hasDocument
+          hasRecipient
+          payment={{ status: "initiated", checkoutUrl: null }}
+        />
+      </PreviewCase>
+
+      <PreviewCase
+        label="step 3 — payment failed"
+        note="Checkout creation failed; the same Pay button remains available."
+      >
+        <Deck
+          initialStep={3}
+          hasDocument
+          hasRecipient
+          payment={{ status: "failed", checkoutUrl: null }}
+        />
+      </PreviewCase>
+
+      <PreviewCase
         label="step 3 — awaiting resend"
         note="Already paid, delivery cleared by an edit. Same summary, no price, sends instead of charging."
       >
@@ -73,12 +98,14 @@ function Deck({
   initialStep,
   hasDocument,
   hasRecipient,
+  payment = null,
   isResend = false,
   locked = false,
 }: {
   initialStep: FaxStep
   hasDocument: boolean
   hasRecipient: boolean
+  payment?: FaxSessionPayment | null
   isResend?: boolean
   locked?: boolean
 }) {
@@ -144,7 +171,7 @@ function Deck({
           recipientSummary="077-4448706"
           pageCount={DOCUMENT.pageCount}
           payment={
-            isResend ? { status: "paid", checkoutUrl: null } : null
+            isResend ? { status: "paid", checkoutUrl: null } : payment
           }
           paymentStart={{ status: "idle" }}
           quote={QUOTE}

@@ -161,6 +161,14 @@ function HydratedFaxFlow({
       : null
     : session.document?.pageCount ?? null
 
+  // The button owns only the instant before D0 publishes a payment state.
+  // Once a session payment arrives, WebSocket state becomes authoritative.
+  useEffect(() => {
+    if (session.payment) {
+      payment.reset()
+    }
+  }, [session.payment, payment.reset])
+
   function handleFileSelection(nextFile: File | null) {
     documentUpload.reset()
     selectFile(nextFile)
@@ -223,11 +231,7 @@ function HydratedFaxFlow({
   }
 
   async function handleStartPayment() {
-    const updatedSession = await payment.start()
-
-    if (updatedSession) {
-      onSessionChange(updatedSession)
-    }
+    await payment.start()
   }
 
   async function handleFaxRetry() {
