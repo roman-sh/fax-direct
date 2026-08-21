@@ -112,8 +112,15 @@
    * https://developers.cloudflare.com/workers/configuration/secrets/
    */
   "vars": {
-    // PayMe sandbox configuration. Replace for production.
-    "PAYME_BASE_URL": "https://sandbox.payme.io/api",
+    // PayMe production. The sandbox is https://sandbox.payme.io/api, and each
+    // environment has its own seller ID, so this and PAYME_SELLER_ID move
+    // together. No trailing slash: callers append their own path segment.
+    "PAYME_BASE_URL": "https://live.payme.io/api",
     "PAYME_CALLBACK_URL": "https://fax.direct/api/webhooks/payment",
+    // Where PayMe sends the customer's browser after a successful payment.
+    // Paying with Bit on a phone leaves the browser for the Bit application,
+    // which hands the return URL back as a new tab; without this the customer
+    // lands on PayMe's own confirmation page with no route back to the fax.
+    "PAYME_RETURN_URL": "https://fax.direct",
   },
 }

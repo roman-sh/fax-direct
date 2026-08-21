@@ -59,6 +59,7 @@ export class PaymentWorkflow extends WorkflowEntrypoint<
         callbackUrl: this.env.PAYME_CALLBACK_URL,
         language: config.payment.language,
         productName: config.payment.productName,
+        returnUrl: this.env.PAYME_RETURN_URL,
         transactionId: sessionId,
       } satisfies GeneratePayMeSaleInput
     })

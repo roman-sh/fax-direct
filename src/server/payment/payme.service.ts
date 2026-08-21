@@ -16,6 +16,8 @@ export type GeneratePayMeSaleInput = {
   language: string
   /** Product description shown on the PayMe-hosted checkout. */
   productName: string
+  /** Where PayMe returns the customer's browser after a successful payment. */
+  returnUrl: string
   transactionId: string
 }
 
@@ -70,6 +72,7 @@ export class PayMeService {
     callbackUrl,
     language,
     productName,
+    returnUrl,
     transactionId,
   }: GeneratePayMeSaleInput): Promise<GeneratePayMeSaleResult> {
     const response = await fetch(`${this.baseUrl}/generate-sale`, {
@@ -90,6 +93,11 @@ export class PayMeService {
         sale_payment_method: "bit",
         layout: "dynamic", // Desktop QR and mobile Bit deep link.
         sale_callback_url: callbackUrl,
+        // Returns the customer to our own delivery status instead of leaving
+        // them on PayMe's confirmation page. It is a browser redirect only:
+        // payment is still confirmed by the server callback above, which
+        // arrives whether or not the customer's browser ever comes back.
+        sale_return_url: returnUrl,
         language, // Market language used on PayMe-hosted screens.
       })
     })
