@@ -1,9 +1,18 @@
+import { Fragment } from "react"
+
 import { AppBar } from "@/components/app-bar"
-import { FactsBar } from "@/components/facts-bar"
 import { FaxSheet } from "@/components/fax-sheet"
+import { SiteFooter } from "@/components/site-footer"
 import { getMarketConfig } from "@/server/config/market-config.service"
 
 export const dynamic = "force-dynamic"
+
+const facts = [
+  "עד 10 עמודים לפקס",
+  "תשלום חד־פעמי",
+  "מעקב עד אישור המסירה",
+  "המסמך נמחק אחרי השליחה",
+]
 
 export default async function Home() {
   const config = await getMarketConfig("IL")
@@ -18,9 +27,19 @@ export default async function Home() {
             <h1 className="text-xl font-bold text-balance sm:text-3xl">
               שליחת פקס אונליין בלי הרשמה ובלי מנוי
             </h1>
-            <p className="mt-2 hidden text-sm text-muted-foreground sm:block">
-              מסמך אחד, מספר אחד, תשלום אחד — והפקס בדרך.
-            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground sm:text-sm">
+              {facts.map((fact, index) => (
+                <Fragment key={fact}>
+                  {index > 0 && (
+                    <span
+                      aria-hidden="true"
+                      className="size-1 rounded-full bg-muted-foreground/40"
+                    />
+                  )}
+                  <span>{fact}</span>
+                </Fragment>
+              ))}
+            </div>
           </div>
 
           <FaxSheet
@@ -31,7 +50,7 @@ export default async function Home() {
         </div>
       </main>
 
-      <FactsBar />
+      <SiteFooter />
     </div>
   )
 }
