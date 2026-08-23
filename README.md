@@ -2,7 +2,7 @@
 
 Fax Direct is a focused Hebrew service for sending a one-time fax without
 creating an account or buying a subscription. The first market is Israel: one
-PDF, one Israeli recipient, up to 10 pages, for a flat **₪5**.
+PDF, one Israeli recipient, up to 10 pages, for a flat **₪10**.
 
 The landing page and application are the same page. The customer selects a
 document, enters the fax number, pays once, and follows delivery through the

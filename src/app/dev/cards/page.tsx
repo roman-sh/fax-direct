@@ -19,7 +19,7 @@ const DOCUMENT = {
   sizeBytes: 399873,
 }
 
-const QUOTE = { amount: "5.00", currency: "ILS" } as const
+const QUOTE = { amount: "10.00", currency: "ILS" } as const
 
 /**
  * The three-card stack at each position in the flow. Every card is rendered,
