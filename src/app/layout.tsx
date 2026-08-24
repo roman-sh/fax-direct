@@ -44,7 +44,7 @@ export default function RootLayout({
       className={`${notoHebrew.variable} ${geistMono.variable}`}
     >
       <head>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml"></link>
+        <link rel="icon" href="/symbol.png" type="image/png"></link>
       </head>
       <body className="antialiased">{children}</body>
     </html>
