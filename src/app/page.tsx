@@ -1,5 +1,3 @@
-import { Fragment } from "react"
-
 import { AppBar } from "@/components/app-bar"
 import { FaxSheet } from "@/components/fax-sheet"
 import { SiteFooter } from "@/components/site-footer"
@@ -8,7 +6,6 @@ import { getMarketConfig } from "@/server/config/market-config.service"
 export const dynamic = "force-dynamic"
 
 const facts = [
-  "עד 10 עמודים לפקס",
   "תשלום חד־פעמי",
   "מעקב עד אישור המסירה",
   "המסמך נמחק אחרי השליחה",
@@ -27,9 +24,12 @@ export default async function Home() {
             <h1 className="text-xl font-bold text-balance sm:text-3xl">
               שליחת פקס אונליין בלי הרשמה ובלי מנוי
             </h1>
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground sm:text-sm">
+            <div className="mt-3 flex h-5 flex-wrap items-center justify-center gap-x-3 gap-y-1.5 overflow-hidden text-xs text-muted-foreground sm:text-sm">
               {facts.map((fact, index) => (
-                <Fragment key={fact}>
+                <span
+                  key={fact}
+                  className="flex shrink-0 items-center gap-3 whitespace-nowrap"
+                >
                   {index > 0 && (
                     <span
                       aria-hidden="true"
@@ -37,7 +37,7 @@ export default async function Home() {
                     />
                   )}
                   <span>{fact}</span>
-                </Fragment>
+                </span>
               ))}
             </div>
           </div>
