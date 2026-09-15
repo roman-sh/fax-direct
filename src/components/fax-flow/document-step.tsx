@@ -1,5 +1,11 @@
 import type { DragEvent } from "react"
-import { ArrowLeft, CircleAlert, FileText, Upload } from "lucide-react"
+import {
+  ArrowLeft,
+  CircleAlert,
+  ExternalLink,
+  FileText,
+  Upload,
+} from "lucide-react"
 
 import { CardHeading } from "@/components/fax-flow/flow-card"
 import type { DocumentUploadState } from "@/components/fax-flow/use-document-upload"
@@ -116,6 +122,18 @@ export function DocumentStep({
             PDF · עד {maxPages} עמודים · עד {formatMegabytes(maxFileBytes)}MB
           </span>
         </label>
+        <p className="text-center text-sm text-muted-foreground">
+          צריכים לאחד תמונות או לסדר עמודים?{" "}
+          <a
+            href="https://simplepdf.com/editor"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:text-brand focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+          >
+            הכינו את המסמך ב־<bdi dir="ltr">SimplePDF</bdi>
+            <ExternalLink aria-hidden="true" className="size-3.5" />
+          </a>
+        </p>
         <div className="flex justify-end">
           <Button
             type="button"

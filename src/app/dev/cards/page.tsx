@@ -34,7 +34,7 @@ export default function CardDeckPreview() {
     >
       <PreviewCase
         label="step 1 — empty"
-        note="Nothing chosen yet; both later cards are future states."
+        note="Nothing chosen yet; includes the external document-preparation link."
       >
         <Deck initialStep={1} hasDocument={false} hasRecipient={false} />
       </PreviewCase>
