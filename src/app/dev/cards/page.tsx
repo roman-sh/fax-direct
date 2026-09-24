@@ -10,6 +10,7 @@ import {
   PaymentStep,
 } from "@/components/fax-flow/payment-step"
 import { RecipientStep } from "@/components/fax-flow/recipient-step"
+import { HowItWorks } from "@/components/how-it-works"
 import type { FaxSessionPayment } from "@/shared/session/fax-session.types"
 
 const DOCUMENT = {
@@ -32,6 +33,16 @@ export default function CardDeckPreview() {
       title="Card stack"
       intro="The flow's three cards at each position, including the two resend states that are otherwise only reachable by paying for a fax and having it fail."
     >
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-baseline gap-3 border-b border-border pb-2">
+          <h2 className="font-mono text-sm font-semibold">How it works</h2>
+          <p className="text-sm text-muted-foreground">
+            The compact production section shown immediately above the footer.
+          </p>
+        </div>
+        <HowItWorks />
+      </section>
+
       <PreviewCase
         label="step 1 — empty"
         note="Nothing chosen yet; includes the external document-preparation link."

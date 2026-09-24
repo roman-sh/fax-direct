@@ -1,12 +1,13 @@
 import { AppBar } from "@/components/app-bar"
 import { FaxSheet } from "@/components/fax-sheet"
+import { HowItWorks } from "@/components/how-it-works"
 import { SiteFooter } from "@/components/site-footer"
 import { getMarketConfig } from "@/server/config/market-config.service"
 
 export const dynamic = "force-dynamic"
 
 const facts = [
-  "תשלום חד־פעמי",
+  "תשלום חד־פעמי בביט",
   "מעקב עד אישור המסירה",
   "המסמך נמחק אחרי השליחה",
 ]
@@ -49,6 +50,10 @@ export default async function Home() {
           />
         </div>
       </main>
+
+      <div className="shrink-0 px-4 pb-4 sm:px-6 sm:pb-5">
+        <HowItWorks />
+      </div>
 
       <SiteFooter />
     </div>
