@@ -1,17 +1,12 @@
 /**
  * Implements Fax Direct's small InterFAX REST boundary. The service submits
- * one PDF, using InterFAX's chunked Documents API when needed, or reads many
- * provider statuses. Orchestration and persistence remain elsewhere.
+ * one PDF directly or reads many provider statuses. Orchestration and
+ * persistence remain elsewhere.
  */
 import {
   interfaxFaxBatchSchema,
   type InterfaxFax,
 } from "@/server/fax/interfax.schema"
-import {
-  InterfaxDocumentService,
-  type InterfaxDocumentSource,
-  type PreparedInterfaxDocument,
-} from "@/server/fax/interfax-document.service"
 import {
   createRejectedRequestError,
   InterfaxServiceError,
@@ -27,6 +22,12 @@ type InterfaxEnvironment = Pick<
   "INTERFAX_USERNAME" | "INTERFAX_PASSWORD"
 >
 
+/** A PDF source whose bytes can be loaded immediately before submission. */
+export type InterfaxDocumentSource = {
+  sizeBytes: number
+  read(): Promise<ArrayBuffer>
+}
+
 export type SendFaxInput = {
   document: InterfaxDocumentSource
   faxNumber: string
@@ -38,7 +39,6 @@ export type SendFaxResult = {
   transactionId: string
 }
 
-export type { InterfaxDocumentSource } from "@/server/fax/interfax-document.service"
 export {
   InterfaxServiceError,
   type InterfaxServiceErrorCode,
@@ -57,7 +57,6 @@ export function createInterfaxService(
 /** Groups the two InterFAX operations required by the first delivery flow. */
 export class InterfaxService {
   private readonly authorization: string
-  private readonly documents: InterfaxDocumentService
 
   constructor(username: string, password: string) {
     if (!username || !password) {
@@ -68,7 +67,6 @@ export class InterfaxService {
     }
 
     this.authorization = createBasicAuthorization(username, password)
-    this.documents = new InterfaxDocumentService(this.authorization)
   }
 
   /**
@@ -82,7 +80,7 @@ export class InterfaxService {
     reference,
     resolution,
   }: SendFaxInput): Promise<SendFaxResult> {
-    const faxContent = createFaxContent(await this.documents.prepare(document))
+    const pdf = await readDocument(document)
     const url = new URL("/outbound/faxes", INTERFAX_BASE_URL)
     url.searchParams.set("faxNumber", faxNumber)
     url.searchParams.set("reference", reference)
@@ -95,9 +93,9 @@ export class InterfaxService {
       headers: {
         Accept: "application/json",
         Authorization: this.authorization,
-        "Content-Type": faxContent.contentType,
+        "Content-Type": "application/pdf",
       },
-      body: faxContent.body,
+      body: pdf,
     })
 
     if (response.status !== 201) {
@@ -168,31 +166,27 @@ export class InterfaxService {
 // HELPERS
 // -----------------------------------------------------------------------------
 
-type FaxContent = {
-  body: BodyInit
-  contentType: string
-}
-
-/** Converts a prepared document into the body expected by fax submission. */
-function createFaxContent(document: PreparedInterfaxDocument): FaxContent {
-  if (document.kind === "inline") {
-    return {
-      body: document.body,
-      contentType: "application/pdf",
-    }
+/** Loads the complete PDF and verifies the storage adapter's size contract. */
+async function readDocument(
+  document: InterfaxDocumentSource
+): Promise<ArrayBuffer> {
+  if (!Number.isSafeInteger(document.sizeBytes) || document.sizeBytes <= 0) {
+    throw new InterfaxServiceError(
+      "INVALID_DOCUMENT_SOURCE",
+      "The PDF size is invalid."
+    )
   }
 
-  const boundary = `fax-direct-${crypto.randomUUID()}`
+  const bytes = await document.read()
 
-  return {
-    body: [
-      `--${boundary}`,
-      `Content-Location: ${document.url}`,
-      "",
-      `--${boundary}--`,
-    ].join("\r\n"),
-    contentType: `multipart/mixed; boundary=${boundary}`,
+  if (bytes.byteLength !== document.sizeBytes) {
+    throw new InterfaxServiceError(
+      "INVALID_DOCUMENT_SOURCE",
+      `Expected ${document.sizeBytes} document bytes, received ${bytes.byteLength}.`
+    )
   }
+
+  return bytes
 }
 
 /** Creates an RFC 7617 Basic authorization value using UTF-8 credentials. */
@@ -207,7 +201,7 @@ function createBasicAuthorization(username: string, password: string): string {
   return `Basic ${btoa(binary)}`
 }
 
-/** Extracts and validates the numeric transaction ID from Location. */
+/** Extracts the provider transaction ID from the created fax's Location. */
 function readTransactionId(location: string): string {
   let transactionId: string | undefined
 
@@ -226,7 +220,7 @@ function readTransactionId(location: string): string {
     )
   }
 
-  if (!transactionId || !/^\d+$/.test(transactionId)) {
+  if (!transactionId) {
     throw new InterfaxServiceError(
       "INVALID_PROVIDER_RESPONSE",
       "InterFAX returned a Location without a transaction ID."

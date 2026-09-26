@@ -32,9 +32,8 @@ layout work below. Payments remain simulated.
 Implemented:
 
 - [x] Evaluate InterFAX with successful real two-page Fine and Standard faxes.
-- [x] Submit small PDFs directly and larger PDFs through sequential 1 MiB
-      InterFAX document chunks.
-- [x] Read document ranges directly from private R2.
+- [x] Submit accepted PDFs directly to the InterFAX fax endpoint.
+- [x] Read the verified document directly from private R2 at submission time.
 - [x] Persist one D1 row per InterFAX transaction.
 - [x] Poll active transactions in batches every 10 seconds.
 - [x] Map provider status and page counts into browser-facing fax state.

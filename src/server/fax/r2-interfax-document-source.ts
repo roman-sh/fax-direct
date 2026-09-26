@@ -1,17 +1,16 @@
 /**
- * Adapts one session document in R2 to InterFAX's storage-agnostic ranged
- * document source. Every range is pinned to the initially observed R2 ETag so
- * one fax cannot accidentally combine chunks from different object versions.
+ * Adapts one session document in R2 to InterFAX's storage-agnostic document
+ * source. The read is pinned to the initially observed R2 ETag so a changed
+ * object cannot be submitted under stale session metadata.
  */
-import type { InterfaxDocumentSource } from "@/server/fax/interfax-document.service"
+import type { InterfaxDocumentSource } from "@/server/fax/interfax.service"
 import type { FaxSessionDocument } from "@/shared/session/fax-session.types"
 
 export type R2InterfaxDocumentSourceErrorCode =
   | "DOCUMENT_CHANGED"
   | "DOCUMENT_NOT_FOUND"
   | "DOCUMENT_SIZE_MISMATCH"
-  | "INVALID_DOCUMENT_RANGE"
-  | "RANGE_UNAVAILABLE"
+  | "DOCUMENT_READ_INCOMPLETE"
 
 /** Identifies session-document storage failures before provider submission. */
 export class R2InterfaxDocumentSourceError extends Error {
@@ -26,8 +25,8 @@ export class R2InterfaxDocumentSourceError extends Error {
 
 /**
  * Loads and verifies the R2 object before exposing it to InterFAX. Performing
- * this check first avoids creating a temporary provider document for a missing
- * or stale application object.
+ * this check first avoids starting a fax submission for a missing or stale
+ * application object.
  */
 export async function createR2InterfaxDocumentSource(
   bucket: R2Bucket,
@@ -50,36 +49,23 @@ export async function createR2InterfaxDocumentSource(
   }
 
   return {
-    name: document.originalName,
     sizeBytes: object.size,
-    readRange: (offset, length) =>
-      readR2Range(bucket, document.objectKey, object.etag, object.size, {
-        offset,
-        length,
-      }),
+    read: () =>
+      readR2Document(bucket, document.objectKey, object.etag, object.size),
   }
 }
 
-type RequiredRange = {
-  offset: number
-  length: number
-}
-
-/** Reads one exact range while requiring the original R2 object version. */
-async function readR2Range(
+/** Reads the complete PDF while requiring the original R2 object version. */
+async function readR2Document(
   bucket: R2Bucket,
   objectKey: string,
   etag: string,
-  objectSize: number,
-  range: RequiredRange
+  objectSize: number
 ): Promise<ArrayBuffer> {
-  validateRange(range, objectSize)
-
   const object = await bucket.get(objectKey, {
     onlyIf: {
       etagMatches: etag,
     },
-    range,
   })
 
   if (!object) {
@@ -98,30 +84,12 @@ async function readR2Range(
 
   const bytes = await object.arrayBuffer()
 
-  if (bytes.byteLength !== range.length) {
+  if (bytes.byteLength !== objectSize) {
     throw new R2InterfaxDocumentSourceError(
-      "RANGE_UNAVAILABLE",
-      `R2 returned ${bytes.byteLength} bytes for '${objectKey}' instead of ${range.length}.`
+      "DOCUMENT_READ_INCOMPLETE",
+      `R2 returned ${bytes.byteLength} bytes for '${objectKey}' instead of ${objectSize}.`
     )
   }
 
   return bytes
-}
-
-/** Rejects impossible ranges before sending a request to R2. */
-function validateRange(range: RequiredRange, objectSize: number): void {
-  const rangeEnd = range.offset + range.length
-  const valid =
-    Number.isSafeInteger(range.offset) &&
-    Number.isSafeInteger(range.length) &&
-    range.offset >= 0 &&
-    range.length > 0 &&
-    rangeEnd <= objectSize
-
-  if (!valid) {
-    throw new R2InterfaxDocumentSourceError(
-      "INVALID_DOCUMENT_RANGE",
-      `The requested document range ${range.offset}-${rangeEnd - 1} exceeds the ${objectSize}-byte R2 object.`
-    )
-  }
 }
