@@ -55,8 +55,6 @@ session_id       TEXT NOT NULL
 provider_status  INTEGER NULL        -- null until the first provider poll
 pages_submitted  INTEGER NOT NULL
 pages_sent       INTEGER NOT NULL
-attempts_made    INTEGER NOT NULL
-attempts_total   INTEGER NOT NULL
 resolution       TEXT NOT NULL         -- Fine | Standard
 submitted_at     TEXT NOT NULL
 updated_at       TEXT NOT NULL
@@ -92,8 +90,6 @@ type InterfaxFax = {
   subject: string
   pagesSubmitted: number
   pagesSent: number
-  attemptsToPerform: number
-  attemptsMade: number
   pageSize: string
   pageResolution: string
   pageOrientation: string
@@ -118,8 +114,6 @@ Observed processing response:
   "status": -3,
   "pagesSubmitted": 2,
   "pagesSent": 2,
-  "attemptsToPerform": 1,
-  "attemptsMade": 0,
   "completionTime": "0001-01-01T00:00:00",
   "duration": 103,
   "units": 0,
@@ -127,8 +121,8 @@ Observed processing response:
 }
 ```
 
-Ten seconds later, the final response had `status: 0`, `attemptsMade: 1`, a
-real `completionTime`, `duration: 107`, and `units: 2`.
+Ten seconds later, the final response had `status: 0`, a real
+`completionTime`, `duration: 107`, and `units: 2`.
 
 ### Response mapping
 
@@ -137,7 +131,6 @@ real `completionTime`, `duration: 107`, and `units: 2`.
 | `id` | Convert to text and store as D1 `transaction_id` |
 | `status` | Store as `provider_status`; negative is temporary, `0` is delivered, and positive is a final failure reason |
 | `pagesSubmitted` / `pagesSent` | Store in D1 and copy to the session fax projection |
-| `attemptsToPerform` / `attemptsMade` | Store in D1 for provider diagnostics; do not expose them in the session fax projection |
 | `pageResolution` | Store as `resolution` |
 | `submitTime` / `completionTime` | Normalize into D1 timestamps; treat `0001-01-01T00:00:00` as no completion time |
 | `subject` | InterFAX returns our submitted `reference` here; use only as a correlation check |
