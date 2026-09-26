@@ -5,9 +5,9 @@ payloads, persisted fields, status mapping, and delivery invariants that are too
 detailed for `README.md`. Product progress and future work belong in
 `MILESTONES.md`.
 
-Provider submission, chunked document upload, D1 persistence, polling, Durable
-Object fax state, and Workflow orchestration are implemented. Sections marked
-as planned describe the remaining recovery behavior.
+Provider submission, D1 persistence, polling, Durable Object fax state, and
+Workflow orchestration are implemented. Sections marked as planned describe
+the remaining recovery behavior.
 
 ## Transport
 
@@ -25,12 +25,11 @@ details are in `README.md`.
 - Submit only after payment is confirmed.
 - Use the session ID as the InterFAX `reference`.
 - Store the returned InterFAX transaction ID as text.
-- Submit PDFs up to 1 MiB directly. For larger PDFs, create an InterFAX
-  document, upload sequential 1 MiB byte ranges through the Documents API,
-  then submit the fax using that document's `Content-Location` reference.
-- The provider client accepts a storage-agnostic ranged reader so the delivery
-  Workflow can read each chunk directly from R2 without placing PDF bytes in
-  Workflow parameters or step results.
+- Submit every accepted PDF directly to the InterFAX fax endpoint as
+  `application/pdf`.
+- The provider client accepts a storage-agnostic reader so the delivery
+  Workflow can load the verified PDF from R2 immediately before submission
+  without placing its bytes in Workflow parameters or step results.
 - Submit `Fine` resolution in the first release. The provider boundary and D1
   schema also support the tested `Standard` value, so a customer choice can be
   added later without changing provider storage.
