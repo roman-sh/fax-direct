@@ -20,8 +20,6 @@ export type CreateFaxTransmission = {
   deliveryAttempt: number
   pagesSubmitted: number
   pagesSent: number
-  attemptsMade: number
-  attemptsTotal: number
   resolution: FaxResolution
   submittedAt: string
 }
@@ -30,8 +28,6 @@ export type UpdateFaxTransmission = {
   providerStatus: number
   pagesSubmitted: number
   pagesSent: number
-  attemptsMade: number
-  attemptsTotal: number
   completedAt: string | null
 }
 

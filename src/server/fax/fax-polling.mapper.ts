@@ -72,8 +72,6 @@ export function mapInterfaxFaxToTransmissionUpdate(
     providerStatus: fax.status,
     pagesSubmitted: fax.pagesSubmitted,
     pagesSent: fax.pagesSent,
-    attemptsMade: fax.attemptsMade,
-    attemptsTotal: fax.attemptsToPerform,
     completedAt: normalizeCompletionTime(fax.status, fax.completionTime),
   }
 }

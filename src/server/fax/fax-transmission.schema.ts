@@ -25,8 +25,6 @@ export const faxTransmissionTable = sqliteTable(
     providerStatus: integer("provider_status"),
     pagesSubmitted: integer("pages_submitted").notNull(),
     pagesSent: integer("pages_sent").notNull(),
-    attemptsMade: integer("attempts_made").notNull(),
-    attemptsTotal: integer("attempts_total").notNull(),
     resolution: text("resolution", {
       enum: [FAX_RESOLUTION.FINE, FAX_RESOLUTION.STANDARD],
     }).notNull(),
@@ -46,10 +44,6 @@ export const faxTransmissionTable = sqliteTable(
     check(
       "fax_transmissions_page_counts",
       sql`${table.pagesSubmitted} >= 0 AND ${table.pagesSent} >= 0`
-    ),
-    check(
-      "fax_transmissions_attempt_counts",
-      sql`${table.attemptsMade} >= 0 AND ${table.attemptsTotal} >= 0`
     ),
     check(
       "fax_transmissions_delivery_attempt",

@@ -7,8 +7,6 @@ import { z } from "zod"
 
 /** The authoritative outbound-fax representation returned by InterFAX. */
 export const interfaxFaxSchema = z.object({
-  attemptsMade: z.number().int().nonnegative(),
-  attemptsToPerform: z.number().int().nonnegative(),
   completionTime: z.string(),
   contact: z.string().nullable(),
   costPerUnit: z.number().nonnegative(),

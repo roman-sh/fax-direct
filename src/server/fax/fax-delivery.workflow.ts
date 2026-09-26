@@ -21,7 +21,6 @@ import type {
 } from "@/shared/session/fax-session.types"
 
 const FAX_POLLING_COORDINATOR_NAME = "global"
-const INTERFAX_ATTEMPTS_TOTAL = 1
 
 export type FaxDeliveryWorkflowParams = {
   sessionId: string
@@ -145,8 +144,6 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
         deliveryAttempt: attempt,
         pagesSubmitted: faxParams.document.pageCount,
         pagesSent: 0,
-        attemptsMade: 0,
-        attemptsTotal: INTERFAX_ATTEMPTS_TOTAL,
         resolution: faxParams.resolution,
         submittedAt: providerSubmission.submittedAt,
       })
