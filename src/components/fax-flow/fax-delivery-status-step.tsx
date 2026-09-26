@@ -259,8 +259,10 @@ const FAILURE_GUIDANCE: Record<FaxFailureSemanticCode, FailureGuidance> = {
   // A provider-side outage. Time is the only fix.
   SERVICE_UNAVAILABLE: { primary: "retry", edit: "editNumber" },
 
-  // Unclassified, so both explanations stay open.
-  UNKNOWN_FAILURE: { primary: "retry", edit: "editNumber" },
+  // Unclassified application or provider failure. Do not steer the customer
+  // toward changing valid input when we have no evidence that it caused the
+  // problem.
+  UNKNOWN_FAILURE: { primary: "retry", edit: null },
 
   // Every page was transmitted but never confirmed, so the recipient may
   // already hold the document. Nothing is emphasized: the message asks them to

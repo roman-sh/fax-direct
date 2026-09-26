@@ -88,7 +88,7 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
         "הכנת המסמך נכשלה. העלו קובץ PDF אחר.",
       CANCELED: "השליחה בוטלה. נסו שוב מאוחר יותר.",
       SERVICE_UNAVAILABLE: "השירות אינו זמין כעת. נסו שוב מאוחר יותר.",
-      UNKNOWN_FAILURE: "השליחה נכשלה. בדקו את המספר ונסו שוב.",
+      UNKNOWN_FAILURE: "משהו השתבש אצלנו. נסו שוב מאוחר יותר.",
       DELIVERY_UNCONFIRMED:
         "כל העמודים הועברו, אך אישור מסירה לא התקבל. ייתכן שהנמען כבר קיבל את המסמך כולו; בדקו איתו לפני שליחה מחדש.",
       PARTIAL_TRANSMISSION: `{pagesSent, plural,
@@ -136,7 +136,7 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
       CANCELED: "The delivery was cancelled. Try again later.",
       SERVICE_UNAVAILABLE:
         "The service is unavailable right now. Try again later.",
-      UNKNOWN_FAILURE: "The delivery failed. Check the number and try again.",
+      UNKNOWN_FAILURE: "Something went wrong on our side. Try again later.",
       DELIVERY_UNCONFIRMED:
         "All pages were transmitted, but no delivery confirmation arrived. The recipient may already have the whole document; check with them before resending.",
       PARTIAL_TRANSMISSION: `{pagesSent, plural,

@@ -156,7 +156,7 @@ diagnostics are never shown to the customer.
 | `DOCUMENT_PROCESSING_FAILED` | לא הצלחנו להכין את המסמך לשליחה. נסו להעלות קובץ PDF אחר. | We could not prepare the document. Try uploading a different PDF. | Edit document |
 | `CANCELED` | שליחת הפקס בוטלה. | Fax delivery was canceled. | Retry |
 | `SERVICE_UNAVAILABLE` | לא הצלחנו לשלוח את הפקס עקב תקלה זמנית בשירות. נסו שוב מאוחר יותר. | A temporary service problem prevented delivery. Try again later. | Retry later |
-| `UNKNOWN_FAILURE` | שליחת הפקס נכשלה מסיבה לא ידועה. בדקו את המספר או נסו שוב מאוחר יותר. | Fax delivery failed for an unknown reason. Check the number or try again later. | Edit number, retry later |
+| `UNKNOWN_FAILURE` | משהו השתבש אצלנו. נסו שוב מאוחר יותר. | Something went wrong on our side. Try again later. | Retry later |
 | `DELIVERY_UNCONFIRMED` | כל עמודי המסמך שודרו, אך לא התקבל אישור מסירה סופי. מומלץ לבדוק מול הנמען לפני ניסיון נוסף. | All pages were transmitted, but final delivery was not confirmed. Check with the recipient before retrying. | Check with recipient |
 | `PARTIAL_TRANSMISSION` | השליחה נכשלה לאחר שחלק מהעמודים שודרו. ייתכן שחלק מהמסמך התקבל. | Delivery failed after some pages were transmitted. The recipient may have received part of the document. | Check before retrying |
 
