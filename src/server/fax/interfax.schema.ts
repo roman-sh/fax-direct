@@ -15,7 +15,6 @@ export const interfaxFaxSchema = z.object({
   id: z.number().int().nonnegative(),
   pageHeader: z.string().nullable(),
   pageOrientation: z.string(),
-  pageResolution: z.string(),
   pageSize: z.string(),
   pagesSent: z.number().int().nonnegative(),
   pagesSubmitted: z.number().int().nonnegative(),

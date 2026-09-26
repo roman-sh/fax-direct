@@ -12,10 +12,10 @@ import {
   InterfaxServiceError,
   readJson,
 } from "@/server/fax/interfax.error"
-import type { FaxResolution } from "@/server/fax/fax-transmission.schema"
 import { INTERFAX_BASE_URL } from "@/config"
 
 const INTERFAX_SINGLE_ATTEMPT = "1"
+const INTERFAX_FINE_RESOLUTION = "Fine"
 
 type InterfaxEnvironment = Pick<
   CloudflareEnv,
@@ -32,7 +32,6 @@ export type SendFaxInput = {
   document: InterfaxDocumentSource
   faxNumber: string
   reference: string
-  resolution: FaxResolution
 }
 
 export type SendFaxResult = {
@@ -78,13 +77,12 @@ export class InterfaxService {
     document,
     faxNumber,
     reference,
-    resolution,
   }: SendFaxInput): Promise<SendFaxResult> {
     const pdf = await readDocument(document)
     const url = new URL("/outbound/faxes", INTERFAX_BASE_URL)
     url.searchParams.set("faxNumber", faxNumber)
     url.searchParams.set("reference", reference)
-    url.searchParams.set("resolution", resolution)
+    url.searchParams.set("resolution", INTERFAX_FINE_RESOLUTION)
     url.searchParams.set("retriesToPerform", INTERFAX_SINGLE_ATTEMPT)
     url.searchParams.set("pageHeader", "N")
 

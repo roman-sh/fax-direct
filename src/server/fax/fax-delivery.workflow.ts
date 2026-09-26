@@ -10,7 +10,6 @@ import {
   type WorkflowStep,
 } from "cloudflare:workers"
 
-import { FAX_RESOLUTION } from "@/server/fax/fax-transmission.schema"
 import { FaxTransmissionRepository } from "@/server/fax/fax-transmission.repository"
 import { createInterfaxService } from "@/server/fax/interfax.service"
 import { createR2InterfaxDocumentSource } from "@/server/fax/r2-interfax-document-source"
@@ -32,7 +31,6 @@ export type FaxDeliveryWorkflowParams = {
 type FaxParams = {
   document: FaxSessionDocument
   recipientE164: string
-  resolution: typeof FAX_RESOLUTION.FINE
 }
 
 type ProviderSubmission = {
@@ -69,7 +67,6 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
       return {
         document: session.document,
         recipientE164: session.recipient.e164,
-        resolution: FAX_RESOLUTION.FINE,
       } satisfies FaxParams
     })
 
@@ -95,7 +92,6 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
             document,
             faxNumber: faxParams.recipientE164,
             reference: sessionId,
-            resolution: faxParams.resolution,
           })
 
           return {
@@ -144,7 +140,6 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
         deliveryAttempt: attempt,
         pagesSubmitted: faxParams.document.pageCount,
         pagesSent: 0,
-        resolution: faxParams.resolution,
         submittedAt: providerSubmission.submittedAt,
       })
 

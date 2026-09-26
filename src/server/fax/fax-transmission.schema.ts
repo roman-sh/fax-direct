@@ -6,11 +6,6 @@
 import { sql } from "drizzle-orm"
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
-export const FAX_RESOLUTION = {
-  FINE: "Fine",
-  STANDARD: "Standard",
-} as const
-
 /** One global D1 record for one InterFAX transaction. */
 export const faxTransmissionTable = sqliteTable(
   "fax_transmissions",
@@ -25,9 +20,6 @@ export const faxTransmissionTable = sqliteTable(
     providerStatus: integer("provider_status"),
     pagesSubmitted: integer("pages_submitted").notNull(),
     pagesSent: integer("pages_sent").notNull(),
-    resolution: text("resolution", {
-      enum: [FAX_RESOLUTION.FINE, FAX_RESOLUTION.STANDARD],
-    }).notNull(),
     submittedAt: text("submitted_at").notNull(),
     updatedAt: text("updated_at")
       .notNull()
@@ -37,10 +29,6 @@ export const faxTransmissionTable = sqliteTable(
   (table) => [
     index("fax_transmissions_provider_status_idx").on(table.providerStatus),
     index("fax_transmissions_session_id_idx").on(table.sessionId),
-    check(
-      "fax_transmissions_resolution",
-      sql`${table.resolution} IN ('Fine', 'Standard')`
-    ),
     check(
       "fax_transmissions_page_counts",
       sql`${table.pagesSubmitted} >= 0 AND ${table.pagesSent} >= 0`
@@ -54,4 +42,3 @@ export const faxTransmissionTable = sqliteTable(
 
 export type FaxTransmissionRow = typeof faxTransmissionTable.$inferSelect
 export type NewFaxTransmissionRow = typeof faxTransmissionTable.$inferInsert
-export type FaxResolution = FaxTransmissionRow["resolution"]

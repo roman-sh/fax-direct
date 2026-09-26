@@ -30,9 +30,8 @@ details are in `README.md`.
 - The provider client accepts a storage-agnostic reader so the delivery
   Workflow can load the verified PDF from R2 immediately before submission
   without placing its bytes in Workflow parameters or step results.
-- Submit `Fine` resolution in the first release. The provider boundary and D1
-  schema also support the tested `Standard` value, so a customer choice can be
-  added later without changing provider storage.
+- Submit `Fine` resolution to InterFAX. This fixed provider setting is not
+  persisted with each transaction.
 - Disable InterFAX automatic retries: each transaction gets one attempt.
 - If submission throws before a transaction is persisted, mark the session fax
   as `failed` with `UNKNOWN_FAILURE`. Do not create a D1 row or start polling.
@@ -55,7 +54,6 @@ session_id       TEXT NOT NULL
 provider_status  INTEGER NULL        -- null until the first provider poll
 pages_submitted  INTEGER NOT NULL
 pages_sent       INTEGER NOT NULL
-resolution       TEXT NOT NULL         -- Fine | Standard
 submitted_at     TEXT NOT NULL
 updated_at       TEXT NOT NULL
 completed_at     TEXT
@@ -91,7 +89,6 @@ type InterfaxFax = {
   pagesSubmitted: number
   pagesSent: number
   pageSize: string
-  pageResolution: string
   pageOrientation: string
   rendering: string
   pageHeader: string | null
@@ -131,7 +128,6 @@ Ten seconds later, the final response had `status: 0`, a real
 | `id` | Convert to text and store as D1 `transaction_id` |
 | `status` | Store as `provider_status`; negative is temporary, `0` is delivered, and positive is a final failure reason |
 | `pagesSubmitted` / `pagesSent` | Store in D1 and copy to the session fax projection |
-| `pageResolution` | Store as `resolution` |
 | `submitTime` / `completionTime` | Normalize into D1 timestamps; treat `0001-01-01T00:00:00` as no completion time |
 | `subject` | InterFAX returns our submitted `reference` here; use only as a correlation check |
 | `duration`, `units`, `costPerUnit`, `remoteCSID` | Useful operational diagnostics; log them at completion but do not put them in the browser session |

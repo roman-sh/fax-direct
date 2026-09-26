@@ -15,6 +15,13 @@
       "when": 1790460185847,
       "tag": "0001_new_joshua_kane",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790461404048,
+      "tag": "0002_abnormal_catseye",
+      "breakpoints": true
     }
   ]
 }

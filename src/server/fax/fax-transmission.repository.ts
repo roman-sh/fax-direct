@@ -8,7 +8,6 @@ import { drizzle } from "drizzle-orm/d1"
 
 import {
   faxTransmissionTable,
-  type FaxResolution,
   type FaxTransmissionRow,
 } from "@/server/fax/fax-transmission.schema"
 
@@ -20,7 +19,6 @@ export type CreateFaxTransmission = {
   deliveryAttempt: number
   pagesSubmitted: number
   pagesSent: number
-  resolution: FaxResolution
   submittedAt: string
 }
 
@@ -72,7 +70,6 @@ export class FaxTransmissionRepository {
       !existing ||
       existing.sessionId !== transmission.sessionId ||
       existing.deliveryAttempt !== transmission.deliveryAttempt ||
-      existing.resolution !== transmission.resolution ||
       existing.submittedAt !== transmission.submittedAt
     ) {
       throw new Error(
