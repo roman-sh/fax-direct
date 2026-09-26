@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ArrowLeft, ArrowRight, Phone } from "lucide-react"
 
 import { CardHeading } from "@/components/fax-flow/flow-card"
@@ -15,6 +15,7 @@ import {
 } from "@/shared/phone/validate-israeli-fax-number"
 
 type RecipientStepProps = {
+  isActive: boolean
   recipient: string
   save: RecipientSaveState
   onRecipientChange: (recipient: string) => void
@@ -23,12 +24,14 @@ type RecipientStepProps = {
 }
 
 export function RecipientStep({
+  isActive,
   recipient,
   save,
   onRecipientChange,
   onBack,
   onContinue,
 }: RecipientStepProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
   const [touched, setTouched] = useState(false)
   const validation = validateIsraeliFaxNumber(recipient)
   const validationError =
@@ -38,6 +41,12 @@ export function RecipientStep({
   const error =
     save.status === "error" ? save.message : validationError
   const isSaving = save.status === "saving"
+
+  useEffect(() => {
+    if (isActive && !isSaving) {
+      inputRef.current?.focus()
+    }
+  }, [isActive, isSaving])
 
   return (
     <>
@@ -59,6 +68,7 @@ export function RecipientStep({
               aria-hidden="true"
             />
             <Input
+              ref={inputRef}
               id="recipient-fax"
               name="recipient"
               type="tel"

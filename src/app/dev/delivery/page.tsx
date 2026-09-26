@@ -188,6 +188,7 @@ function StatusCard({ fax }: { fax: FaxSessionFax | null }) {
         onOpen={setActiveStep}
       >
         <RecipientStep
+          isActive={activeStep === 2}
           recipient="077-4448706"
           save={{ status: "idle" }}
           onRecipientChange={() => {}}

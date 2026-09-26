@@ -279,6 +279,7 @@ function HydratedFaxFlow({
           locked={isDeliveryLocked}
         >
           <RecipientStep
+            isActive={activeStep === 2}
             recipient={recipient}
             save={recipientSave.state}
             onRecipientChange={handleRecipientChange}

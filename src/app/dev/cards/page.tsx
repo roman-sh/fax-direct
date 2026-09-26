@@ -155,6 +155,7 @@ function Deck({
         locked={locked}
       >
         <RecipientStep
+          isActive={activeStep === 2}
           recipient={hasRecipient ? "077-4448706" : ""}
           save={{ status: "idle" }}
           onRecipientChange={() => {}}
