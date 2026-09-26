@@ -299,7 +299,7 @@ Initial Hebrew messages and recommended controls:
 | `DOCUMENT_PROCESSING_FAILED` | לא הצלחנו להכין את המסמך לשליחה. נסו להעלות קובץ PDF אחר. | Edit document |
 | `CANCELED` | שליחת הפקס בוטלה. | Retry |
 | `SERVICE_UNAVAILABLE` | לא הצלחנו לשלוח את הפקס עקב תקלה זמנית בשירות. נסו שוב מאוחר יותר. | Retry later |
-| `UNKNOWN_FAILURE` | שליחת הפקס נכשלה מסיבה לא ידועה. בדקו את המספר או נסו שוב מאוחר יותר. | Edit number, retry later |
+| `UNKNOWN_FAILURE` | משהו השתבש אצלנו. נסו שוב מאוחר יותר. | Retry later |
 | `DELIVERY_UNCONFIRMED` | כל עמודי המסמך שודרו, אך לא התקבל אישור מסירה סופי. מומלץ לבדוק מול הנמען לפני ניסיון נוסף. | Check with recipient |
 | `PARTIAL_TRANSMISSION` | Parameterized plural message shown below. | Check with recipient before retry |
 
