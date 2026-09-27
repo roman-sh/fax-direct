@@ -16,10 +16,10 @@ export default async function Home() {
   const config = await getMarketConfig("IL")
 
   return (
-    <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
+    <div className="flex min-h-dvh flex-col">
       <AppBar />
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 sm:py-8">
+      <main className="flex min-h-0 flex-1 flex-col px-4 py-5 sm:px-6 sm:py-8">
         <div className="my-auto flex w-full flex-col items-center gap-4 sm:gap-5">
           <div className="text-center">
             <h1 className="text-xl font-bold text-balance sm:text-3xl">
