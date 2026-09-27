@@ -203,6 +203,20 @@ export function getFaxSnapshotFingerprint(
   return `${fax.status}:${fax.pagesSent}:${fax.pagesSubmitted}:${fax.error ?? ""}`
 }
 
+/** Formats page progress independently from the provider's current status. */
+export function formatFaxPageProgressMessage(
+  pagesSent: number,
+  pagesSubmitted: number,
+  formatters: FaxMessageFormatters
+): string {
+  return String(
+    formatters.progressStatusToMessageMap.sendingProgress.format({
+      pagesSent,
+      pagesSubmitted,
+    })
+  )
+}
+
 /** Returns the single localized line describing one session snapshot. */
 export function formatFaxSnapshotMessage(
   fax: FaxSessionFax | null,
@@ -221,11 +235,10 @@ export function formatFaxSnapshotMessage(
       return String(progressStatusToMessageMap.queued.format())
     case FAX_STATUS.SENDING:
       if (fax.pagesSent > 0) {
-        return String(
-          progressStatusToMessageMap.sendingProgress.format({
-            pagesSent: fax.pagesSent,
-            pagesSubmitted: fax.pagesSubmitted,
-          })
+        return formatFaxPageProgressMessage(
+          fax.pagesSent,
+          fax.pagesSubmitted,
+          formatters
         )
       }
 

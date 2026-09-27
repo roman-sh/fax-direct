@@ -107,11 +107,11 @@ export function FaxDeliveryStatusStep({
           className="fax-heartbeat pointer-events-none absolute inset-0 z-10"
         />
       ) : null}
-      {/* The heading's description slot carries the failure sentence, so it is
-          the single primary message and the only live region announcing it —
-          the activity log suppresses failed snapshots. Actions sit beside it
-          rather than below the content, leaving the body's height untouched in
-          every state. */}
+      {/* The heading's description slot keeps the current failure and its
+          actions immediately visible. The activity log also retains that
+          failure as part of the chronological delivery history. Actions sit
+          beside the description rather than below the content, leaving the
+          body's height untouched in every state. */}
       <CardHeading
         title="סטטוס השליחה"
         description={
