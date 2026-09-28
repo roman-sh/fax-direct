@@ -123,4 +123,71 @@
     // lands on PayMe's own confirmation page with no route back to the fax.
     "PAYME_RETURN_URL": "https://fax.direct",
   },
+  "env": {
+    "dev": {
+      // A persistent public test deployment using the same application data as
+      // production, but creating PayMe sales in the sandbox environment.
+      "workers_dev": true,
+      "images": {
+        "binding": "IMAGES",
+      },
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "fax-direct-dev",
+        },
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "MARKET_CONFIG",
+          "id": "c698a6ad54a348548908eb1e24dc7d83",
+        },
+      ],
+      "r2_buckets": [
+        {
+          "binding": "FAX_DOCUMENTS",
+          "bucket_name": "fax-direct-documents",
+        },
+      ],
+      "d1_databases": [
+        {
+          "binding": "APP_DATABASE",
+          "database_name": "fax-direct",
+          "database_id": "ec189b33-c584-4acf-9c68-dcc5c80b305e",
+          "migrations_dir": "drizzle/d1",
+        },
+      ],
+      "workflows": [
+        {
+          "name": "fax-delivery-dev",
+          "binding": "FAX_DELIVERY_WORKFLOW",
+          "class_name": "FaxDeliveryWorkflow",
+        },
+        {
+          "name": "payment-dev",
+          "binding": "PAYMENT_WORKFLOW",
+          "class_name": "PaymentWorkflow",
+        },
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "FAX_SESSIONS",
+            "class_name": "FaxSession",
+            "script_name": "fax-direct",
+          },
+          {
+            "name": "FAX_POLLING_COORDINATOR",
+            "class_name": "FaxPollingCoordinator",
+            "script_name": "fax-direct",
+          },
+        ],
+      },
+      "vars": {
+        "PAYME_BASE_URL": "https://sandbox.payme.io/api",
+        "PAYME_CALLBACK_URL": "https://fax-direct-dev.shmigelsky.workers.dev/api/webhooks/payment",
+        "PAYME_RETURN_URL": "https://fax-direct-dev.shmigelsky.workers.dev",
+      },
+    },
+  },
 }
