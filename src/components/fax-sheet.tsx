@@ -11,10 +11,7 @@ import {
   FlowCard,
   type FaxStep,
 } from "@/components/fax-flow/flow-card"
-import {
-  formatFaxQuote,
-  PaymentStep,
-} from "@/components/fax-flow/payment-step"
+import { PaymentStep } from "@/components/fax-flow/payment-step"
 import { RecipientStep } from "@/components/fax-flow/recipient-step"
 import { useDocumentUpload } from "@/components/fax-flow/use-document-upload"
 import { useFaxRetry } from "@/components/fax-flow/use-fax-retry"
@@ -25,6 +22,7 @@ import { useRecipientSave } from "@/components/fax-flow/use-recipient-save"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
+import { formatFaxQuote } from "@/lib/format-fax-quote"
 import {
   FAX_STATUS,
   PAYMENT_STATUS,

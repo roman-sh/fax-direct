@@ -1,10 +1,16 @@
+import type { Metadata } from "next"
+import { cache } from "react"
+
 import { AppBar } from "@/components/app-bar"
 import { FaxSheet } from "@/components/fax-sheet"
 import { HowItWorks } from "@/components/how-it-works"
 import { SiteFooter } from "@/components/site-footer"
 import { getMarketConfig } from "@/server/config/market-config.service"
+import { formatFaxQuote } from "@/lib/format-fax-quote"
 
 export const dynamic = "force-dynamic"
+
+const getHomepageMarketConfig = cache(() => getMarketConfig("IL"))
 
 const facts = [
   "תשלום חד־פעמי בביט",
@@ -12,8 +18,23 @@ const facts = [
   "המסמך נמחק אחרי השליחה",
 ]
 
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getHomepageMarketConfig()
+  const price = formatFaxQuote(config.price)
+
+  return {
+    description: `שולחים פקס אונליין בישראל בלי מכונת פקס ובלי הרשמה. מעלים קובץ PDF, מזינים את מספר הנמען, משלמים ${price} ועוקבים אחרי מצב השליחה באותו עמוד.`,
+    openGraph: {
+      title: "שליחת פקס אונליין ללא הרשמה | Fax Direct",
+      description: `שליחת פקס חד־פעמית מהדפדפן: קובץ PDF, מספר נמען, ${price} ומעקב אחרי המסירה.`,
+      locale: "he_IL",
+      type: "website",
+    },
+  }
+}
+
 export default async function Home() {
-  const config = await getMarketConfig("IL")
+  const config = await getHomepageMarketConfig()
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -52,7 +73,7 @@ export default async function Home() {
       </main>
 
       <div className="shrink-0 px-4 pb-4 sm:px-6 sm:pb-5">
-        <HowItWorks />
+        <HowItWorks price={config.price} />
       </div>
 
       <SiteFooter />

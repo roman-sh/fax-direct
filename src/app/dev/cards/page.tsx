@@ -2,16 +2,19 @@
 
 import { CreditCard, FileText, Phone, Send } from "lucide-react"
 
+import marketConfig from "../../../../config/market.il.json"
+
 import { PreviewCase, PreviewPage, useLocalStep } from "@/app/dev/_preview"
 import { DocumentStep } from "@/components/fax-flow/document-step"
 import { FlowCard, type FaxStep } from "@/components/fax-flow/flow-card"
-import {
-  formatFaxQuote,
-  PaymentStep,
-} from "@/components/fax-flow/payment-step"
+import { PaymentStep } from "@/components/fax-flow/payment-step"
 import { RecipientStep } from "@/components/fax-flow/recipient-step"
 import { HowItWorks } from "@/components/how-it-works"
-import type { FaxSessionPayment } from "@/shared/session/fax-session.types"
+import { formatFaxQuote } from "@/lib/format-fax-quote"
+import type {
+  FaxSessionPayment,
+  FaxSessionQuote,
+} from "@/shared/session/fax-session.types"
 
 const DOCUMENT = {
   objectKey: "PREVIEW-CARD-DECK",
@@ -20,7 +23,10 @@ const DOCUMENT = {
   sizeBytes: 399873,
 }
 
-const QUOTE = { amount: "10.00", currency: "ILS" } as const
+const QUOTE: FaxSessionQuote = {
+  amount: marketConfig.price.amount,
+  currency: "ILS",
+}
 
 /**
  * The three-card stack at each position in the flow. Every card is rendered,
@@ -40,7 +46,7 @@ export default function CardDeckPreview() {
             The compact production section shown immediately above the footer.
           </p>
         </div>
-        <HowItWorks />
+        <HowItWorks price={QUOTE} />
       </section>
 
       <PreviewCase
