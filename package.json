@@ -9,6 +9,7 @@
     "start": "next start",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "deploy:dev": "opennextjs-cloudflare build --env dev && opennextjs-cloudflare deploy --env dev",
+    "deploy:all": "opennextjs-cloudflare build && opennextjs-cloudflare deploy --env dev && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "config:seed": "tsx scripts/publish-market-config.ts --local",

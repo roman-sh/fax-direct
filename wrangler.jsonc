@@ -121,7 +121,7 @@
     // Paying with Bit on a phone leaves the browser for the Bit application,
     // which hands the return URL back as a new tab; without this the customer
     // lands on PayMe's own confirmation page with no route back to the fax.
-    "PAYME_RETURN_URL": "https://fax.direct",
+    "PAYME_RETURN_URL": "https://fax.direct/payment/return",
   },
   "env": {
     "dev": {
@@ -186,7 +186,7 @@
       "vars": {
         "PAYME_BASE_URL": "https://sandbox.payme.io/api",
         "PAYME_CALLBACK_URL": "https://fax-direct-dev.shmigelsky.workers.dev/api/webhooks/payment",
-        "PAYME_RETURN_URL": "https://fax-direct-dev.shmigelsky.workers.dev",
+        "PAYME_RETURN_URL": "https://fax-direct-dev.shmigelsky.workers.dev/payment/return",
       },
     },
   },
