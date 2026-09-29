@@ -4,8 +4,10 @@
  */
 import {
   payMeGenerateSaleResponseSchema,
+  payMeGetSalesResponseSchema,
   type PayMeError,
 } from "@/server/payment/payme.schema"
+import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
 
 /** Application values required to create one PayMe sale. */
 export type GeneratePayMeSaleInput = {
@@ -38,6 +40,36 @@ export type GeneratePayMeSaleResult = {
   /** Fax Direct session identifier echoed by PayMe. */
   transactionId: string
 }
+
+export type PayMeSaleState =
+  | typeof PAYMENT_STATUS.paid
+  | typeof PAYMENT_STATUS.failed
+  | typeof PAYMENT_STATUS.pending
+
+export type GetPayMeSaleStateResult = {
+  providerStatus: string | null
+  state: PayMeSaleState
+}
+
+const PAYME_SALE_STATUS = {
+  authorized: "authorized",
+  canceled: "canceled",
+  completed: "completed",
+  failed: "failed",
+  initial: "initial",
+  voided: "voided",
+} as const
+
+const PAID_PAYME_SALE_STATUSES = new Set<string>([
+  PAYME_SALE_STATUS.authorized,
+  PAYME_SALE_STATUS.completed,
+])
+
+const FAILED_PAYME_SALE_STATUSES = new Set<string>([
+  PAYME_SALE_STATUS.canceled,
+  PAYME_SALE_STATUS.failed,
+  PAYME_SALE_STATUS.voided,
+])
 
 /**
  * Identifies errors raised by the PayMe boundary. The standard `message`
@@ -134,6 +166,93 @@ export class PayMeService {
       price: payme.price,
       transactionId: payme.transaction_id,
     }
+  }
+
+  /** Reads PayMe's authoritative state for one exact application sale. */
+  async getSaleState(
+    payMeSaleId: string,
+    transactionId: string
+  ): Promise<GetPayMeSaleStateResult> {
+    const response = await fetch(`${this.baseUrl}/get-sales`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        seller_payme_id: this.sellerId,
+        sale_payme_id: payMeSaleId,
+        transaction_id: transactionId,
+        // get-sales remains a paginated endpoint even when filtered by an
+        // exact sale ID, so request only the single matching result.
+        page_size: 1,
+        page: 1,
+      }),
+    })
+
+    const rawBody: unknown = await response.json()
+    const result = payMeGetSalesResponseSchema.safeParse(rawBody)
+
+    if (!result.success) {
+      throw new PayMeServiceError(
+        "PayMe returned an invalid get-sales response.",
+        { cause: result.error }
+      )
+    }
+
+    // PayMe uses status_code 1 for an API-level rejection, usually even when
+    // the HTTP request itself succeeded with status 200.
+    if (result.data.status_code === 1) {
+      throw new PayMeServiceError(createPayMeErrorMessage(result.data), {
+        cause: result.data,
+      })
+    }
+
+    // get-sales always returns an items array, even when filtered by one exact
+    // sale ID. Verify both PayMe's ID and our transaction ID instead of trusting
+    // the first item in the response.
+    const sale = result.data.items.find(
+      (item) =>
+        item.sale_payme_id === payMeSaleId &&
+        item.transaction_id === transactionId
+    )
+
+    if (!sale) {
+      throw new PayMeServiceError(
+        "PayMe did not return the requested sale."
+      )
+    }
+
+    // In Fax Direct, paid means the payment permits fax delivery. Both a
+    // captured sale and an authorization satisfy that application-level gate.
+    if (PAID_PAYME_SALE_STATUSES.has(sale.sale_status)) {
+      return {
+        providerStatus: sale.sale_status,
+        state: PAYMENT_STATUS.paid,
+      }
+    }
+
+    // PayMe has several terminal unsuccessful statuses; the application maps
+    // all of them to one failed state while retaining the exact provider value.
+    if (FAILED_PAYME_SALE_STATUSES.has(sale.sale_status)) {
+      return {
+        providerStatus: sale.sale_status,
+        state: PAYMENT_STATUS.failed,
+      }
+    }
+
+    // Initial is PayMe's known pre-payment state: the sale exists, but the
+    // customer has not completed a payment attempt yet.
+    if (sale.sale_status === PAYME_SALE_STATUS.initial) {
+      return {
+        providerStatus: sale.sale_status,
+        state: PAYMENT_STATUS.pending,
+      }
+    }
+
+    throw new PayMeServiceError(
+      `PayMe returned an unsupported sale status: ${sale.sale_status}.`
+    )
   }
 }
 
