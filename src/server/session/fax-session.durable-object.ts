@@ -280,6 +280,47 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     })
   }
 
+  /**
+   * Publishes a failed PayMe sale and removes its unusable hosted checkout.
+   * Repeated failure callbacks are idempotent; a completed payment wins over
+   * any delayed failure notification.
+   */
+  async failPayment(): Promise<void> {
+    const current = await this.getSession()
+
+    if (current.payment?.status === PAYMENT_STATUS.paid) return
+    if (
+      current.payment?.status === PAYMENT_STATUS.failed &&
+      current.payment.checkoutUrl === null
+    ) {
+      return
+    }
+
+    const success = await this.updateSession(() => {
+      const updated = this.db
+        .update(faxSessionTable)
+        .set({
+          paymentStatus: PAYMENT_STATUS.failed,
+          checkoutUrl: null,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(
+          and(
+            eq(faxSessionTable.id, SESSION_ROW_ID),
+            eq(faxSessionTable.paymentStatus, PAYMENT_STATUS.pending)
+          )
+        )
+        .returning({ id: faxSessionTable.id })
+        .get()
+
+      return updated !== undefined
+    })
+
+    if (!success) {
+      throw new Error("Session update to failed payment status failed.")
+    }
+  }
+
   /** Stores the checkout URL, marks payment pending, and broadcasts the session. */
   async setCheckout(checkoutUrl: string): Promise<void> {
     await this.updateSession(() => {

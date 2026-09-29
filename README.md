@@ -69,11 +69,12 @@ The PayMe integration currently follows this flow:
    `sale-complete` notification changes D1 and the session to `paid`, replaces
    the checkout with delivery status through WebSocket, and starts the
    fax-delivery Workflow.
+10. A valid `sale-failure` notification changes only the matching current sale
+    and session to `failed`, clears its unusable checkout, and lets the customer
+    restart the Payment Workflow to replace that row with a fresh PayMe sale.
 
 Webhook signature verification is still pending PayMe's canonical signing
-instructions. `sale-failure` notifications are currently acknowledged and
-logged; publishing their failed state to D1 and the session remains follow-up
-work.
+instructions.
 
 ## Architecture
 

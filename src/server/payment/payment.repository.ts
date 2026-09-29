@@ -3,7 +3,7 @@
  * payment endpoint reads the current lifecycle state, the Workflow creates the
  * row, and later webhook handling will update it through this repository.
  */
-import { eq, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/d1"
 
 import {
@@ -82,5 +82,37 @@ export class PaymentRepository {
     if (!record) {
       throw new Error(`Payment session ${sessionId} was not found.`)
     }
+  }
+
+  /**
+   * Marks only the session's current pending PayMe sale failed. The follow-up
+   * read makes webhook retries heal a partially completed D1/DO update while a
+   * delayed failure for a sale already replaced by retry remains a no-op.
+   */
+  async markFailed(
+    sessionId: string,
+    payMeSaleId: string
+  ): Promise<boolean> {
+    await this.db
+      .update(paymentTable)
+      .set({
+        status: PAYMENT_STATUS.failed,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .where(
+        and(
+          eq(paymentTable.sessionId, sessionId),
+          eq(paymentTable.payMeSaleId, payMeSaleId),
+          eq(paymentTable.status, PAYMENT_STATUS.pending)
+        )
+      )
+      .run()
+
+    const payment = await this.findBySessionId(sessionId)
+
+    return (
+      payment?.payMeSaleId === payMeSaleId &&
+      payment.status === PAYMENT_STATUS.failed
+    )
   }
 }

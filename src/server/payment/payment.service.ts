@@ -90,3 +90,27 @@ export async function confirmFaxPayment(
   // Start the durable fax-delivery sequence after payment is confirmed.
   await startFaxDeliveryAttempt(sessionId)
 }
+
+/**
+ * Applies a failure only to the PayMe sale currently owned by this session.
+ * Repeated callbacks remain useful for healing the live session if D1 was
+ * updated before a transient Durable Object failure; callbacks for a replaced
+ * sale are ignored.
+ */
+export async function failFaxPayment(
+  sessionId: string,
+  payMeSaleId: string
+): Promise<void> {
+  const { env } = getCloudflareContext()
+  const isCurrentFailure = await new PaymentRepository(
+    env.APP_DATABASE
+  ).markFailed(sessionId, payMeSaleId)
+
+  if (!isCurrentFailure) {
+    return
+  }
+
+  await env.FAX_SESSIONS
+    .getByName(sessionId)
+    .failPayment()
+}

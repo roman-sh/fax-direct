@@ -5,6 +5,7 @@ export const payMeWebhookSchema = z
   .object({
     notify_type: z.string(),
     payme_status: z.string().optional(),
+    payme_sale_id: z.string().optional(),
     transaction_id: z.string().optional(),
   })
   .transform((webhook, context) => {
@@ -34,7 +35,29 @@ export const payMeWebhookSchema = z
         }
 
       case "sale-failure":
-        return { type: "sale-failure" as const }
+        if (!webhook.transaction_id) {
+          context.addIssue({
+            code: "custom",
+            path: ["transaction_id"],
+            message: "Expected a session ID.",
+          })
+          return z.NEVER
+        }
+
+        if (!webhook.payme_sale_id) {
+          context.addIssue({
+            code: "custom",
+            path: ["payme_sale_id"],
+            message: "Expected a PayMe sale ID.",
+          })
+          return z.NEVER
+        }
+
+        return {
+          type: "sale-failure" as const,
+          sessionId: webhook.transaction_id,
+          payMeSaleId: webhook.payme_sale_id,
+        }
 
       default:
         return {

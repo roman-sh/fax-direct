@@ -1,6 +1,9 @@
 /** Receives PayMe's asynchronous sale callbacks. */
 import { payMeWebhookSchema } from "@/server/payment/payme-webhook.schema"
-import { confirmFaxPayment } from "@/server/payment/payment.service"
+import {
+  confirmFaxPayment,
+  failFaxPayment,
+} from "@/server/payment/payment.service"
 
 export const runtime = "nodejs"
 
@@ -34,9 +37,20 @@ export async function POST(request: Request): Promise<Response> {
       }
 
     case "sale-failure":
-      // The failed-payment state will be persisted in a later step.
-      console.warn("PayMe reported a failed sale.")
-      return new Response(null, { status: 200 })
+      try {
+        await failFaxPayment(
+          callback.data.sessionId,
+          callback.data.payMeSaleId
+        )
+        return new Response(null, { status: 200 })
+      } catch (error) {
+        console.error("Could not record failed fax payment:", error)
+        return errorResponse(
+          "PAYMENT_FAILURE_UPDATE_FAILED",
+          "Could not record failed payment.",
+          503
+        )
+      }
 
     default:
       console.info(
