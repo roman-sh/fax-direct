@@ -18,6 +18,7 @@ import {
   type GeneratePayMeSaleInput,
   type GeneratePayMeSaleResult,
 } from "@/server/payment/payme.service"
+import type { PaymentReconciliationWorkflowParams } from "@/server/payment/payment-reconciliation.workflow"
 import { PaymentRepository } from "@/server/payment/payment.repository"
 import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
 
@@ -107,6 +108,20 @@ export class PaymentWorkflow extends WorkflowEntrypoint<
         currency: sale.currency,
         paymentMethod: sale.paymentMethod,
       })
+
+      return null
+    })
+
+    await step.do("start-payment-reconciliation", async () => {
+      await this.env.PAYMENT_RECONCILIATION_WORKFLOW.createBatch([
+        {
+          id: sale.payMeSaleId,
+          params: {
+            payMeSaleId: sale.payMeSaleId,
+            sessionId,
+          } satisfies PaymentReconciliationWorkflowParams,
+        },
+      ])
 
       return null
     })

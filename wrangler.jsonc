@@ -60,6 +60,11 @@
       "binding": "PAYMENT_WORKFLOW",
       "class_name": "PaymentWorkflow",
     },
+    {
+      "name": "payment-reconciliation",
+      "binding": "PAYMENT_RECONCILIATION_WORKFLOW",
+      "class_name": "PaymentReconciliationWorkflow",
+    },
   ],
   "durable_objects": {
     "bindings": [
@@ -167,6 +172,11 @@
           "name": "payment-dev",
           "binding": "PAYMENT_WORKFLOW",
           "class_name": "PaymentWorkflow",
+        },
+        {
+          "name": "payment-reconciliation-dev",
+          "binding": "PAYMENT_RECONCILIATION_WORKFLOW",
+          "class_name": "PaymentReconciliationWorkflow",
         },
       ],
       "durable_objects": {
