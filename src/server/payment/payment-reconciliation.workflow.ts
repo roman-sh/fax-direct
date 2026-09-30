@@ -4,7 +4,7 @@ import {
   type WorkflowStep,
 } from "cloudflare:workers"
 
-import type { FaxDeliveryWorkflowParams } from "@/server/fax/fax-delivery.workflow"
+import { scheduleFaxDelivery } from "@/server/fax/fax-delivery.service"
 import {
   PayMeService,
   type GetPayMeSaleStateResult,
@@ -83,28 +83,39 @@ export class PaymentReconciliationWorkflow extends WorkflowEntrypoint<
           return null
         })
 
-        // Initialize the first delivery attempt before creating its Workflow.
-        // A null result means delivery is already running or the session is no
-        // longer eligible, so there is nothing else to start.
+        // Initialize the session attempt and ensure its deterministic
+        // fax-delivery Workflow exists.
         await step.do("start-fax-delivery", async () => {
-          const attempt =
-            await sessionObject.initializeDeliveryAttempt()
+          await scheduleFaxDelivery(this.env, sessionId)
 
-          if (!attempt) {
-            return null
-          }
+          return null
+        })
 
-          // The attempt number makes the Workflow ID deterministic,
-          // preventing a replay from creating a duplicate fax delivery.
-          await this.env.FAX_DELIVERY_WORKFLOW.createBatch([
-            {
-              id: `${sessionId}-${attempt.number}`,
-              params: {
-                sessionId,
-                attempt: attempt.number,
-              } satisfies FaxDeliveryWorkflowParams,
-            },
-          ])
+        break
+      }
+
+      case PAYMENT_STATUS.failed: {
+        const sessionObject = this.env.FAX_SESSIONS.getByName(sessionId)
+
+        // Apply failure only while this remains the session's current sale. A
+        // delayed result from a sale replaced by a retry must not overwrite it.
+        const isCurrentFailure = await step.do(
+          "mark-payment-failed",
+          async () =>
+            new PaymentRepository(this.env.APP_DATABASE).markFailed(
+              sessionId,
+              payMeSaleId
+            )
+        )
+
+        if (!isCurrentFailure) {
+          break
+        }
+
+        // Publish the failed state and remove the unusable checkout URL so the
+        // browser can offer another payment attempt.
+        await step.do("publish-payment-failed", async () => {
+          await sessionObject.failPayment()
 
           return null
         })

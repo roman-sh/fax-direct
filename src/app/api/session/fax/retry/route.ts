@@ -5,7 +5,9 @@
  * document and recipient present) and atomically initializes the next attempt,
  * so a double click or second tab cannot start two deliveries.
  */
-import { startFaxDeliveryAttempt } from "@/server/fax/fax-delivery.service"
+import { getCloudflareContext } from "@opennextjs/cloudflare"
+
+import { scheduleFaxDelivery } from "@/server/fax/fax-delivery.service"
 import { getOrCreateFaxBrowserSession } from "@/server/session/fax-browser-session.service"
 
 export const runtime = "nodejs"
@@ -13,7 +15,8 @@ export const runtime = "nodejs"
 export async function POST(): Promise<Response> {
   try {
     const { sessionId } = await getOrCreateFaxBrowserSession()
-    const session = await startFaxDeliveryAttempt(sessionId)
+    const { env } = getCloudflareContext()
+    const session = await scheduleFaxDelivery(env, sessionId)
 
     if (!session) {
       return errorResponse(

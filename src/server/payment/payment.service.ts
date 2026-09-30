@@ -2,7 +2,7 @@ import "server-only"
 
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 
-import { startFaxDeliveryAttempt } from "@/server/fax/fax-delivery.service"
+import { scheduleFaxDelivery } from "@/server/fax/fax-delivery.service"
 import { PaymentRepository } from "@/server/payment/payment.repository"
 import type { PaymentWorkflowParams } from "@/server/payment/payment.workflow"
 import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
@@ -88,7 +88,7 @@ export async function confirmFaxPayment(
     .confirmPayment()
 
   // Start the durable fax-delivery sequence after payment is confirmed.
-  await startFaxDeliveryAttempt(sessionId)
+  await scheduleFaxDelivery(env, sessionId)
 }
 
 /**

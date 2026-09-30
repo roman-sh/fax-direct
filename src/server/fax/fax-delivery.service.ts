@@ -1,7 +1,3 @@
-import "server-only"
-
-import { getCloudflareContext } from "@opennextjs/cloudflare"
-
 import type { FaxDeliveryWorkflowParams } from "@/server/fax/fax-delivery.workflow"
 import type { FaxSessionData } from "@/shared/session/fax-session.types"
 
@@ -14,10 +10,10 @@ import type { FaxSessionData } from "@/shared/session/fax-session.types"
  * fax.
  * Returns null when the session may not start an attempt.
  */
-export async function startFaxDeliveryAttempt(
+export async function scheduleFaxDelivery(
+  env: CloudflareEnv,
   sessionId: string
 ): Promise<FaxSessionData | null> {
-  const { env } = getCloudflareContext()
   const attempt = await env.FAX_SESSIONS
     .getByName(sessionId)
     .initializeDeliveryAttempt()
