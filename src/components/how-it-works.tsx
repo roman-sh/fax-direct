@@ -21,7 +21,7 @@ export function HowItWorks({ price }: { price: FaxSessionQuote }) {
         <CircleHelp className="text-brand" aria-hidden="true" />
         <AlertTitle id="how-it-works-title">איך זה עובד?</AlertTitle>
         <AlertDescription className="leading-relaxed">
-          מעלים מסמך, מזינים מספר פקס בישראל ומשלמים {formatFaxQuote(price)}
+          מעלים מסמך, מזינים מספר פקס בישראל ומשלמים {formatFaxQuote(price)}{" "}
           בתשלום חד־פעמי באמצעות ביט. לאחר התשלום ניתן לעקוב אחר מצב השליחה בזמן
           אמת. אין צורך בהרשמה או במנוי. המסמך נמחק מהמערכת לאחר 24 שעות.
         </AlertDescription>
