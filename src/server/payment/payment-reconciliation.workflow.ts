@@ -32,34 +32,39 @@ export class PaymentReconciliationWorkflow extends WorkflowEntrypoint<
   ): Promise<GetPayMeSaleStateResult> {
     const { payMeSaleId, sessionId } = event.payload
 
-    try {
-      // Pause until either PayMe's webhook or the customer's return request
-      // tells this sale's Workflow instance that its status may have changed.
-      await step.waitForEvent("wait-for-payment-signal", {
-        type: PAYMENT_STATUS_CHANGED_EVENT,
-        timeout: "1 minute",
-      })
-    } catch {
-      // If neither signal arrives, the one-minute timeout still performs the
-      // same provider check so a missing webhook cannot leave payment stuck.
-    }
+    let result: GetPayMeSaleStateResult
 
-    // Signals and timeouts are triggers only. PayMe's API remains the
-    // authoritative source for the sale's paid, failed, or pending state.
-    const result = await step.do(
-      "get-payme-sale-state",
-      {
-        retries: {
-          limit: 0,
-          delay: 0,
+    // Keep waiting and checking until PayMe reports a final state.
+    do {
+      try {
+        // Pause until either PayMe's webhook or the customer's return request
+        // tells this sale's Workflow instance that its status may have changed.
+        await step.waitForEvent("wait-for-payment-signal", {
+          type: PAYMENT_STATUS_CHANGED_EVENT,
+          timeout: "1 minute",
+        })
+      } catch {
+        // If neither signal arrives, the one-minute timeout still performs the
+        // same provider check so a missing webhook cannot leave payment stuck.
+      }
+
+      // Signals and timeouts are triggers only. PayMe's API remains the
+      // authoritative source for the sale's paid, failed, or pending state.
+      result = await step.do(
+        "get-payme-sale-state",
+        {
+          retries: {
+            limit: 0,
+            delay: 0,
+          },
         },
-      },
-      async () => // return
-        new PayMeService(
-          this.env.PAYME_SELLER_ID,
-          this.env.PAYME_BASE_URL
-        ).getSaleState(payMeSaleId, sessionId)
-    )
+        async () => // return
+          new PayMeService(
+            this.env.PAYME_SELLER_ID,
+            this.env.PAYME_BASE_URL
+          ).getSaleState(payMeSaleId, sessionId)
+      )
+    } while (result.state === PAYMENT_STATUS.pending)
 
     switch (result.state) {
       case PAYMENT_STATUS.paid: {
