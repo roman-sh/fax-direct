@@ -1,9 +1,6 @@
 /** Receives PayMe's asynchronous sale callbacks. */
 import { payMeWebhookSchema } from "@/server/payment/payme-webhook.schema"
-import {
-  confirmFaxPayment,
-  failFaxPayment,
-} from "@/server/payment/payment.service"
+import { signalPaymentReconciliation } from "@/server/payment/payment.service"
 
 export const runtime = "nodejs"
 
@@ -24,30 +21,15 @@ export async function POST(request: Request): Promise<Response> {
 
   switch (callback.data.type) {
     case "sale-complete":
-      try {
-        await confirmFaxPayment(callback.data.sessionId)
-        return new Response(null, { status: 200 })
-      } catch (error) {
-        console.error("Could not confirm fax payment:", error)
-        return errorResponse(
-          "PAYMENT_CONFIRMATION_FAILED",
-          "Could not confirm payment.",
-          503
-        )
-      }
-
     case "sale-failure":
       try {
-        await failFaxPayment(
-          callback.data.sessionId,
-          callback.data.payMeSaleId
-        )
+        await signalPaymentReconciliation(callback.data.sessionId)
         return new Response(null, { status: 200 })
       } catch (error) {
-        console.error("Could not record failed fax payment:", error)
+        console.error("Could not signal payment reconciliation:", error)
         return errorResponse(
-          "PAYMENT_FAILURE_UPDATE_FAILED",
-          "Could not record failed payment.",
+          "PAYMENT_RECONCILIATION_SIGNAL_FAILED",
+          "Could not signal payment reconciliation.",
           503
         )
       }

@@ -5,16 +5,13 @@ import {
 } from "cloudflare:workers"
 
 import { scheduleFaxDelivery } from "@/server/fax/fax-delivery.service"
+import { PAYMENT_STATUS_CHANGED_EVENT } from "@/server/payment/payment-reconciliation.constants"
 import {
   PayMeService,
   type GetPayMeSaleStateResult,
 } from "@/server/payment/payme.service"
 import { PaymentRepository } from "@/server/payment/payment.repository"
 import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
-
-// Webhook and browser-return handlers send this event only as a wake-up signal.
-// The Workflow never trusts the signal as proof of a payment outcome.
-const PAYMENT_STATUS_CHANGED_EVENT = "payment-status-changed"
 
 export type PaymentReconciliationWorkflowParams = {
   payMeSaleId: string

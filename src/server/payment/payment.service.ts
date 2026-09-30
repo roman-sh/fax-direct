@@ -2,7 +2,7 @@ import "server-only"
 
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 
-import { scheduleFaxDelivery } from "@/server/fax/fax-delivery.service"
+import { PAYMENT_STATUS_CHANGED_EVENT } from "@/server/payment/payment-reconciliation.constants"
 import { PaymentRepository } from "@/server/payment/payment.repository"
 import type { PaymentWorkflowParams } from "@/server/payment/payment.workflow"
 import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
@@ -69,48 +69,32 @@ export async function startFaxPayment(
 }
 
 /**
- * Applies a payment confirmation callback and durably ensures its delivery
- * Workflow exists. Repeated callbacks are safe: delivery initialization
- * returns the same attempt while `preparing` (idempotent instance creation)
- * and declines once the delivery is in flight.
+ * Wakes the current PayMe sale's reconciliation Workflow. Webhook and browser
+ * return data are hints only; the Workflow queries PayMe for the actual state.
  */
-export async function confirmFaxPayment(
+export async function signalPaymentReconciliation(
   sessionId: string
 ): Promise<void> {
   const { env } = getCloudflareContext()
-
-  // Persist the completed payment in the global D1 record.
-  await new PaymentRepository(env.APP_DATABASE).markPaid(sessionId)
-
-  // Publish the paid state to the browser through the session Durable Object.
-  await env.FAX_SESSIONS
-    .getByName(sessionId)
-    .confirmPayment()
-
-  // Start the durable fax-delivery sequence after payment is confirmed.
-  await scheduleFaxDelivery(env, sessionId)
-}
-
-/**
- * Applies a failure only to the PayMe sale currently owned by this session.
- * Repeated callbacks remain useful for healing the live session if D1 was
- * updated before a transient Durable Object failure; callbacks for a replaced
- * sale are ignored.
- */
-export async function failFaxPayment(
-  sessionId: string,
-  payMeSaleId: string
-): Promise<void> {
-  const { env } = getCloudflareContext()
-  const isCurrentFailure = await new PaymentRepository(
+  const payment = await new PaymentRepository(
     env.APP_DATABASE
-  ).markFailed(sessionId, payMeSaleId)
+  ).findBySessionId(sessionId)
 
-  if (!isCurrentFailure) {
+  if (!payment) {
+    throw new Error(`Payment session ${sessionId} was not found.`)
+  }
+
+  // A repeated callback needs no work after reconciliation has finished.
+  if (payment.status !== PAYMENT_STATUS.pending) {
     return
   }
 
-  await env.FAX_SESSIONS
-    .getByName(sessionId)
-    .failPayment()
+  const workflow = await env.PAYMENT_RECONCILIATION_WORKFLOW.get(
+    payment.payMeSaleId
+  )
+
+  await workflow.sendEvent({
+    type: PAYMENT_STATUS_CHANGED_EVENT,
+    payload: null,
+  })
 }
