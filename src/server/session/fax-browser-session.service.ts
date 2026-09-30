@@ -15,6 +15,20 @@ import {
 } from "@/shared/session/fax-session-id"
 
 /**
+ * Reads the fax session already carried by this browser without creating one.
+ * PayMe's return request uses this to identify which sale should be checked.
+ */
+export async function getExistingFaxBrowserSessionId(): Promise<string | null> {
+  const session = await openFaxBrowserSession()
+
+  return session.sessionId
+    ? normalizeFaxSessionId(session.sessionId)
+    : session.sessionCode
+      ? normalizeFaxSessionId(session.sessionCode)
+      : null
+}
+
+/**
  * Opens the authenticated, encrypted browser cookie that identifies one fax
  * session. Iron Session returns an empty object for missing, expired, or
  * tampered seals, allowing the caller to initialize a new session safely.

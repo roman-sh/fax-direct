@@ -127,8 +127,8 @@ export class PayMeService {
         sale_callback_url: callbackUrl,
         // Returns the customer to our own delivery status instead of leaving
         // them on PayMe's confirmation page. It is a browser redirect only:
-        // payment is still confirmed by the server callback above, which
-        // arrives whether or not the customer's browser ever comes back.
+        // callbacks and browser returns only wake reconciliation, which queries
+        // PayMe before accepting the payment result.
         sale_return_url: returnUrl,
         language, // Market language used on PayMe-hosted screens.
       })

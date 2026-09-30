@@ -8,9 +8,9 @@ import { Spinner } from "@/components/ui/spinner"
  * Keeps PayMe's browser return useful in both checkout contexts.
  *
  * A desktop checkout returns inside its iframe, where the existing session
- * WebSocket will remove this view as soon as the server callback confirms the
- * payment. Bit may instead open the return URL as a top-level mobile tab; that
- * tab goes back to the homepage and resumes the same cookie-backed session.
+ * WebSocket will remove this view as soon as reconciliation confirms payment.
+ * Bit may instead open the return URL as a top-level mobile tab; that tab goes
+ * back to the homepage and resumes the same cookie-backed session.
  */
 export function PaymentReturn() {
   useEffect(() => {

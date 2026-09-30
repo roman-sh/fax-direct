@@ -61,17 +61,23 @@ The PayMe integration currently follows this flow:
 6. D1 inserts the sale when no payment exists, replaces a `failed` payment, or
    retains the existing row when it is already `pending` or `paid`. The
    retained row is the application's authoritative payment.
-7. The Workflow publishes that row's checkout URL and `pending` state to the
-   session Durable Object, which broadcasts it over the existing WebSocket.
+7. The Workflow creates one reconciliation Workflow identified by the PayMe
+   sale ID, then publishes the checkout URL and `pending` state through the
+   session Durable Object and its existing WebSocket.
 8. The browser displays the Bit checkout. Refreshing restores the same URL from
    the Durable Object's session state.
-9. PayMe posts an `application/x-www-form-urlencoded` webhook. A valid
-   `sale-complete` notification changes D1 and the session to `paid`, replaces
-   the checkout with delivery status through WebSocket, and starts the
-   fax-delivery Workflow.
-10. A valid `sale-failure` notification changes only the matching current sale
-    and session to `failed`, clears its unusable checkout, and lets the customer
-    restart the Payment Workflow to replace that row with a fresh PayMe sale.
+9. A valid PayMe webhook or the customer's browser return wakes the
+   reconciliation Workflow. A one-minute event timeout performs the same check
+   when neither signal arrives.
+10. Every wake queries PayMe's `get-sales` endpoint instead of trusting the
+    triggering request. A pending result changes nothing and returns to the
+    durable wait.
+11. A paid result updates D1 and the session Durable Object, replaces the
+    checkout with delivery status through WebSocket, and schedules the
+    fax-delivery Workflow.
+12. A failed result updates only the matching current sale, clears its unusable
+    checkout, and lets the customer restart the Payment Workflow with a fresh
+    PayMe sale.
 
 Webhook signature verification is still pending PayMe's canonical signing
 instructions.
@@ -87,6 +93,7 @@ instructions.
 | R2 | Private, temporary PDF storage with a 24-hour lifecycle rule |
 | `FaxSession` Durable Object | Per-session SQLite state and live WebSocket snapshots |
 | `PaymentWorkflow` | Durable PayMe sale creation, persistence, and browser-state publication |
+| `PaymentReconciliationWorkflow` | Authoritative PayMe status checks triggered by webhook, browser return, or timeout |
 | `FaxDeliveryWorkflow` | Durable paid-fax orchestration through InterFAX submission |
 | D1 | Authoritative PayMe sale records and globally queryable InterFAX transactions |
 | `FaxPollingCoordinator` Durable Object | Owns the single ten-second polling alarm |
