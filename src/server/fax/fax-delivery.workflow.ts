@@ -1,8 +1,7 @@
 /**
  * Runs the durable, paid-fax delivery sequence. Every instance — the initial
- * paid delivery and each manual retry — is created through the delivery gate
- * (`beginDelivery` + fax-delivery.service.ts), which claims the session as
- * `preparing` and numbers the instance id before this Workflow starts.
+ * paid delivery and each manual retry — starts after the session Durable Object
+ * initializes its numbered attempt as `preparing`.
  */
 import {
   WorkflowEntrypoint,
@@ -59,7 +58,7 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
 
       // PDF and phone validation happened before they entered FaxSession. The
       // Workflow checks only that the values required for delivery are present.
-      // The delivery gate already claimed the session as `preparing`.
+      // The session was already initialized as `preparing` for this attempt.
       if (!session.document || !session.recipient) {
         throw new Error(`Fax session ${sessionId} is missing delivery data.`)
       }

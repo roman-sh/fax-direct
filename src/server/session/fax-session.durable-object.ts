@@ -372,21 +372,20 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   }
 
   /**
-   * Atomically claims the next delivery attempt for a paid session, or returns
-   * null when no attempt may start. The check and the `preparing` flip commit
-   * in this one single-threaded call — before any Workflow instance exists —
-   * so concurrent requests cannot start two deliveries. The attempt number
-   * suffixes the Workflow instance id, keeping instance creation idempotent
-   * per attempt.
+   * Initializes the session state for one fax-delivery attempt.
    *
-   * A session already `preparing` returns its current attempt unchanged: the
-   * caller re-creates the same deterministic instance, which no-ops when it
-   * exists and heals the claim when instance creation previously failed. Any
-   * in-flight or delivered status returns null — those states are written by
-   * the running instance itself, so there is nothing to start or heal.
+   * A paid session with a document and recipient may start its first delivery
+   * or retry a failed one. Initialization increments the attempt number, resets
+   * earlier progress and errors, changes the fax status to `preparing`, and
+   * publishes the updated session to connected browsers.
+   *
+   * When the session is already `preparing`, the existing attempt is returned
+   * unchanged. This lets the caller safely repeat deterministic Workflow
+   * creation if an earlier creation request failed. Other active or completed
+   * delivery states return null because no new Workflow should be created.
    */
-  async beginDelivery(): Promise<{
-    attempt: number
+  async initializeDeliveryAttempt(): Promise<{
+    number: number
     session: FaxSessionData
   } | null> {
     const row = this.db
@@ -401,6 +400,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
 
     const document = documentFromRow(row)
 
+    // Delivery requires a completed payment and both provider inputs.
     if (
       row.paymentStatus !== PAYMENT_STATUS.paid ||
       document === null ||
@@ -409,13 +409,15 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
       return null
     }
 
+    // Reuse the existing number so retrying Workflow creation remains safe.
     if (row.faxStatus === FAX_STATUS.PREPARING) {
       return {
-        attempt: row.deliveryAttempt,
+        number: row.deliveryAttempt,
         session: await this.getSession(),
       }
     }
 
+    // A running or completed delivery must not start another attempt.
     if (
       row.faxStatus !== null &&
       row.faxStatus !== FAX_STATUS.FAILED
@@ -424,6 +426,8 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     }
 
     const attempt = row.deliveryAttempt + 1
+
+    // Initialize browser-visible progress before its Workflow is created.
     const session = await this.updateSession(() => {
       this.db
         .update(faxSessionTable)
@@ -444,7 +448,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     })
 
     return {
-      attempt,
+      number: attempt,
       session,
     }
   }

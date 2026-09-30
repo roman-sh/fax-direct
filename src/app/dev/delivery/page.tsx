@@ -34,7 +34,7 @@ const PROGRESS_CASES: {
 }[] = [
   {
     label: "fax: null",
-    note: "The 111ms after payment, before the Workflow claims an attempt.",
+    note: "The 111ms after payment, before the delivery attempt is initialized.",
     fax: null,
   },
   {

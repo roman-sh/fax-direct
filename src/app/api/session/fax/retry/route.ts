@@ -1,9 +1,9 @@
 /**
  * Manually retries a failed fax for the signed browser session.
  *
- * The delivery gate on the Durable Object authorizes the retry (paid session,
- * final failure, document and recipient present) and atomically claims the
- * next attempt, so a double click or second tab cannot start two deliveries.
+ * The Durable Object authorizes the retry (paid session, final failure,
+ * document and recipient present) and atomically initializes the next attempt,
+ * so a double click or second tab cannot start two deliveries.
  */
 import { startFaxDeliveryAttempt } from "@/server/fax/fax-delivery.service"
 import { getOrCreateFaxBrowserSession } from "@/server/session/fax-browser-session.service"

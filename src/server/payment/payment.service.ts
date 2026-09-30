@@ -70,9 +70,9 @@ export async function startFaxPayment(
 
 /**
  * Applies a payment confirmation callback and durably ensures its delivery
- * Workflow exists. Repeated callbacks are safe: the delivery gate re-issues
- * the same attempt while `preparing` (idempotent instance creation) and
- * declines once the delivery is in flight.
+ * Workflow exists. Repeated callbacks are safe: delivery initialization
+ * returns the same attempt while `preparing` (idempotent instance creation)
+ * and declines once the delivery is in flight.
  */
 export async function confirmFaxPayment(
   sessionId: string
