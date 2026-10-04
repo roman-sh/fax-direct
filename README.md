@@ -66,9 +66,9 @@ The PayMe integration currently follows this flow:
    session Durable Object and its existing WebSocket.
 8. The browser displays the Bit checkout. Refreshing restores the same URL from
    the Durable Object's session state.
-9. A valid PayMe webhook or the customer's browser return wakes the
-   reconciliation Workflow. A one-minute event timeout performs the same check
-   when neither signal arrives.
+9. A valid PayMe webhook, the customer's browser return, or restoration of a
+   pending browser session wakes the reconciliation Workflow. Abandoned sales
+   remain dormant instead of producing periodic PayMe API traffic.
 10. Every wake queries PayMe's `get-sales` endpoint instead of trusting the
     triggering request. A pending result changes nothing and returns to the
     durable wait.

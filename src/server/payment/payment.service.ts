@@ -69,8 +69,9 @@ export async function startFaxPayment(
 }
 
 /**
- * Wakes the current PayMe sale's reconciliation Workflow. Webhook and browser
- * return data are hints only; the Workflow queries PayMe for the actual state.
+ * Wakes the current PayMe sale's reconciliation Workflow. Webhook, browser
+ * return, and session-restoration signals are hints only; the Workflow queries
+ * PayMe for the actual state.
  */
 export async function signalPaymentReconciliation(
   sessionId: string

@@ -23,8 +23,8 @@ export default async function PaymentReturnPage() {
       // queries PayMe before accepting the payment result.
       await signalPaymentReconciliation(sessionId)
     } catch (error) {
-      // Do not strand the customer on an error page: the reconciliation
-      // Workflow's one-minute provider check remains the fallback.
+      // Do not strand the customer on an error page. PayMe's webhook or a
+      // later restoration of this browser session can signal reconciliation.
       console.error("Could not signal payment reconciliation from return:", error)
     }
   }

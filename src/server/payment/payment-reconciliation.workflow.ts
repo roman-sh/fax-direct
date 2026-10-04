@@ -31,22 +31,16 @@ export class PaymentReconciliationWorkflow extends WorkflowEntrypoint<
 
     let result: GetPayMeSaleStateResult
 
-    // Keep waiting and checking until PayMe reports a final state.
+    // Keep waiting and checking until PayMe reports a final state. Signals
+    // come from PayMe's webhook, the browser return, or restoration of a
+    // pending browser session; abandoned sales cause no periodic API traffic.
     do {
-      try {
-        // Pause until either PayMe's webhook or the customer's return request
-        // tells this sale's Workflow instance that its status may have changed.
-        await step.waitForEvent("wait-for-payment-signal", {
-          type: PAYMENT_STATUS_CHANGED_EVENT,
-          timeout: "1 minute",
-        })
-      } catch {
-        // If neither signal arrives, the one-minute timeout still performs the
-        // same provider check so a missing webhook cannot leave payment stuck.
-      }
+      await step.waitForEvent("wait-for-payment-signal", {
+        type: PAYMENT_STATUS_CHANGED_EVENT,
+      })
 
-      // Signals and timeouts are triggers only. PayMe's API remains the
-      // authoritative source for the sale's paid, failed, or pending state.
+      // Signals are triggers only. PayMe's API remains the authoritative
+      // source for the sale's paid, failed, or pending state.
       result = await step.do(
         "get-payme-sale-state",
         {

@@ -13,7 +13,9 @@
  */
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 
+import { signalPaymentReconciliation } from "@/server/payment/payment.service"
 import { getOrCreateFaxBrowserSession } from "@/server/session/fax-browser-session.service"
+import { PAYMENT_STATUS } from "@/shared/session/fax-session-status"
 import {
   EMPTY_FAX_SESSION_DATA,
   type FaxSessionData,
@@ -29,10 +31,26 @@ export async function POST(): Promise<Response> {
       return sessionResponse(EMPTY_FAX_SESSION_DATA)
     }
 
-    const namespace = getCloudflareContext().env.FAX_SESSIONS
+    const { env, ctx } = getCloudflareContext()
+    const namespace = env.FAX_SESSIONS
     const session = await namespace
       .getByName(browserSession.sessionId)
       .getSession()
+
+    // Returning to a saved pending checkout is itself a reason to ask PayMe
+    // for its current state. Run the signal in the request lifetime without
+    // delaying session restoration; the session WebSocket publishes any
+    // resulting paid or failed state to the browser.
+    if (session.payment?.status === PAYMENT_STATUS.pending) {
+      ctx.waitUntil(
+        signalPaymentReconciliation(browserSession.sessionId).catch((error) => {
+          console.error(
+            "Could not signal payment reconciliation from session restoration:",
+            error
+          )
+        })
+      )
+    }
 
     return sessionResponse(session)
   } catch (error) {
