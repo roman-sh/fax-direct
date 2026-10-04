@@ -170,7 +170,7 @@ function StatusCard({ fax }: { fax: FaxSessionFax | null }) {
         <DocumentStep
           file={null}
           storedDocument={DOCUMENT}
-          inspection={{ status: "empty" }}
+          selection={{ status: "empty" }}
           upload={{ status: "ready" }}
           maxFileBytes={10 * 1024 * 1024}
           maxPages={10}

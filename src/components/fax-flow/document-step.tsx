@@ -8,18 +8,19 @@ import {
 } from "lucide-react"
 
 import { CardHeading } from "@/components/fax-flow/flow-card"
+import type { DocumentSelectionState } from "@/components/fax-flow/use-document-selection"
 import type { DocumentUploadState } from "@/components/fax-flow/use-document-upload"
-import type { PdfInspectionState } from "@/components/fax-flow/use-pdf-inspection"
 import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
+import { ACCEPTED_DOCUMENT_FORMATS } from "@/shared/document/document-formats"
 import type { FaxSessionDocument } from "@/shared/session/fax-session.types"
 
 type DocumentStepProps = {
   file: File | null
   storedDocument: FaxSessionDocument | null
-  inspection: PdfInspectionState
+  selection: DocumentSelectionState
   upload: DocumentUploadState
   maxFileBytes: number
   maxPages: number
@@ -30,7 +31,7 @@ type DocumentStepProps = {
 export function DocumentStep({
   file,
   storedDocument,
-  inspection,
+  selection,
   upload,
   maxFileBytes,
   maxPages,
@@ -38,13 +39,13 @@ export function DocumentStep({
   onContinue,
 }: DocumentStepProps) {
   const hasStoredDocument = file === null && storedDocument !== null
-  const isValid = inspection.status === "valid" || hasStoredDocument
+  const isValid = selection.status === "valid" || hasStoredDocument
   const isUploading = upload.status === "uploading"
   const hasError =
-    inspection.status === "invalid" || upload.status === "error"
+    selection.status === "invalid" || upload.status === "error"
   const displayedName = file?.name ?? storedDocument?.originalName
   const statusMessage = getDocumentStatusMessage(
-    inspection,
+    selection,
     upload,
     hasStoredDocument ? storedDocument : null
   )
@@ -64,7 +65,9 @@ export function DocumentStep({
         <input
           id="fax-document"
           type="file"
-          accept="application/pdf,.pdf"
+          accept={ACCEPTED_DOCUMENT_FORMATS.map(
+            (format) => `.${format}`
+          ).join(",")}
           disabled={isUploading}
           className="peer sr-only"
           onChange={(event) => {
@@ -90,7 +93,7 @@ export function DocumentStep({
               hasError && "text-destructive"
             )}
           >
-            {inspection.status === "inspecting" || isUploading ? (
+            {isUploading ? (
               <Spinner className="size-7" />
             ) : hasError ? (
               <CircleAlert className="size-7" />
@@ -108,15 +111,17 @@ export function DocumentStep({
             >
               {displayedName ?? "גררו לכאן קובץ PDF"}
             </span>
-            <span
-              aria-live="polite"
-              className={cn(
-                "text-sm text-muted-foreground",
-                hasError && "text-destructive"
-              )}
-            >
-              {statusMessage}
-            </span>
+            {statusMessage ? (
+              <span
+                aria-live="polite"
+                className={cn(
+                  "text-sm text-muted-foreground",
+                  hasError && "text-destructive"
+                )}
+              >
+                {statusMessage}
+              </span>
+            ) : null}
           </span>
           <span className="font-mono text-[0.7rem] tracking-wide text-muted-foreground">
             PDF · עד {maxPages} עמודים · עד {formatMegabytes(maxFileBytes)}MB
@@ -161,10 +166,10 @@ export function DocumentStep({
 }
 
 function getDocumentStatusMessage(
-  inspection: PdfInspectionState,
+  selection: DocumentSelectionState,
   upload: DocumentUploadState,
   storedDocument: FaxSessionDocument | null
-): string {
+): string | null {
   if (upload.status === "uploading") {
     return "מעלים ושומרים את המסמך…"
   }
@@ -173,20 +178,16 @@ function getDocumentStatusMessage(
     return upload.message
   }
 
-  if (inspection.status === "inspecting") {
-    return "בודקים את הקובץ…"
-  }
-
-  if (inspection.status === "valid") {
-    return `${formatPageCount(inspection.pageCount)} · הקובץ מוכן`
-  }
-
-  if (inspection.status === "invalid") {
-    return inspection.message
+  if (selection.status === "invalid") {
+    return selection.message
   }
 
   if (storedDocument) {
     return `${formatPageCount(storedDocument.pageCount)} · המסמך השמור מוכן`
+  }
+
+  if (selection.status === "valid") {
+    return null
   }
 
   return "או לחצו כדי לבחור קובץ מהמחשב"

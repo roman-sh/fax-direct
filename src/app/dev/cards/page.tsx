@@ -142,7 +142,7 @@ function Deck({
         <DocumentStep
           file={null}
           storedDocument={hasDocument ? DOCUMENT : null}
-          inspection={{ status: "empty" }}
+          selection={{ status: "empty" }}
           upload={{ status: hasDocument ? "ready" : "idle" }}
           maxFileBytes={10 * 1024 * 1024}
           maxPages={10}

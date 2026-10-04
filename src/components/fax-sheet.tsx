@@ -13,10 +13,10 @@ import {
 } from "@/components/fax-flow/flow-card"
 import { PaymentStep } from "@/components/fax-flow/payment-step"
 import { RecipientStep } from "@/components/fax-flow/recipient-step"
+import { useDocumentSelection } from "@/components/fax-flow/use-document-selection"
 import { useDocumentUpload } from "@/components/fax-flow/use-document-upload"
 import { useFaxRetry } from "@/components/fax-flow/use-fax-retry"
 import { useFaxSession } from "@/components/fax-flow/use-fax-session"
-import { usePdfInspection } from "@/components/fax-flow/use-pdf-inspection"
 import { usePayment } from "@/components/fax-flow/use-payment"
 import { useRecipientSave } from "@/components/fax-flow/use-recipient-save"
 import { Button } from "@/components/ui/button"
@@ -142,9 +142,8 @@ function HydratedFaxFlow({
   const payment = usePayment()
   const recipientSave = useRecipientSave()
   const faxRetry = useFaxRetry()
-  const { file, inspection, selectFile } = usePdfInspection({
+  const { file, selection, selectFile } = useDocumentSelection({
     maxFileBytes,
-    maxPages,
   })
 
   const storedDocument = file ? null : session.document
@@ -153,11 +152,7 @@ function HydratedFaxFlow({
   const recipientSummary =
     session.recipient?.displayValue ??
     (recipient.trim() || "מספר הנמען")
-  const pageCount = file
-    ? inspection.status === "valid"
-      ? inspection.pageCount
-      : null
-    : session.document?.pageCount ?? null
+  const pageCount = file ? null : session.document?.pageCount ?? null
 
   // The button owns only the instant before D0 publishes a payment state.
   // Once a session payment arrives, WebSocket state becomes authoritative.
@@ -181,7 +176,7 @@ function HydratedFaxFlow({
       return
     }
 
-    if (inspection.status !== "valid") {
+    if (selection.status !== "valid") {
       return
     }
 
@@ -258,7 +253,7 @@ function HydratedFaxFlow({
           <DocumentStep
             file={file}
             storedDocument={storedDocument}
-            inspection={inspection}
+            selection={selection}
             upload={documentUpload.state}
             maxFileBytes={maxFileBytes}
             maxPages={maxPages}
