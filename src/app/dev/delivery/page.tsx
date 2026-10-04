@@ -25,7 +25,8 @@ const DOCUMENT = {
   originalName: "two_pages.pdf",
   pageCount: 2,
   sizeBytes: 399873,
-}
+  status: "ready",
+} as const
 
 const PROGRESS_CASES: {
   label: string

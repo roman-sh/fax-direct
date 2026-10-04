@@ -21,7 +21,8 @@ const DOCUMENT = {
   originalName: "two_pages.pdf",
   pageCount: 2,
   sizeBytes: 399873,
-}
+  status: "ready",
+} as const
 
 const QUOTE: FaxSessionQuote = {
   amount: marketConfig.price.amount,
@@ -51,7 +52,7 @@ export default function CardDeckPreview() {
 
       <PreviewCase
         label="step 1 — empty"
-        note="Nothing chosen yet; includes the external document-preparation link."
+        note="Nothing chosen yet; includes the external PDF editor link."
       >
         <Deck initialStep={1} hasDocument={false} hasRecipient={false} />
       </PreviewCase>

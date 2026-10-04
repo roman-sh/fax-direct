@@ -19,7 +19,7 @@ import {
   PdfInspectionError,
   type PdfInspectionErrorCode,
 } from "@/shared/pdf/inspect-pdf"
-import type { FaxSessionDocument } from "@/shared/session/fax-session.types"
+import type { FaxSessionDocumentFile } from "@/shared/session/fax-session.types"
 
 export const runtime = "nodejs"
 
@@ -105,10 +105,9 @@ export async function POST(request: Request): Promise<Response> {
     )
   }
 
-  const document: FaxSessionDocument = {
+  const document: FaxSessionDocumentFile = {
     objectKey: sessionId,
     originalName: file.name,
-    pageCount,
     sizeBytes: file.size,
   }
 
@@ -130,9 +129,21 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const session = await env.FAX_SESSIONS
-      .getByName(sessionId)
-      .setDocument(document, calculateFaxQuote(config))
+    const sessionObject = env.FAX_SESSIONS.getByName(sessionId)
+
+    // This records the R2 file as `processing`. For now, PDF inspection still
+    // happened synchronously above, so this route immediately finalizes it.
+    // The document Workflow will eventually own the finalization call.
+    await sessionObject.initializeDocument(document)
+
+    const session = await sessionObject.finalizeDocument(
+      pageCount,
+      calculateFaxQuote(config)
+    )
+
+    if (!session) {
+      throw new Error("Document was not processing during finalization.")
+    }
 
     return Response.json(session, {
       headers: {

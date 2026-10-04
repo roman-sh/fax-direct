@@ -15,11 +15,11 @@ import { CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import { ACCEPTED_DOCUMENT_FORMATS } from "@/shared/document/document-formats"
-import type { FaxSessionDocument } from "@/shared/session/fax-session.types"
+import type { FaxSessionReadyDocument } from "@/shared/session/fax-session.types"
 
 type DocumentStepProps = {
   file: File | null
-  storedDocument: FaxSessionDocument | null
+  storedDocument: FaxSessionReadyDocument | null
   selection: DocumentSelectionState
   upload: DocumentUploadState
   maxFileBytes: number
@@ -168,7 +168,7 @@ export function DocumentStep({
 function getDocumentStatusMessage(
   selection: DocumentSelectionState,
   upload: DocumentUploadState,
-  storedDocument: FaxSessionDocument | null
+  storedDocument: FaxSessionReadyDocument | null
 ): string | null {
   if (upload.status === "uploading") {
     return "מעלים ושומרים את המסמך…"

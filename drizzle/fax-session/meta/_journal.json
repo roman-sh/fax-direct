@@ -8,6 +8,13 @@
       "when": 1786326336918,
       "tag": "0000_cloudy_chimera",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791086744054,
+      "tag": "0001_cooing_wendigo",
+      "breakpoints": true
     }
   ]
 }

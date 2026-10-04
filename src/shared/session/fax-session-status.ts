@@ -1,5 +1,16 @@
 import { z } from "zod"
 
+/** Server-owned lifecycle for a document stored for inspection. */
+export const DOCUMENT_STATUS_VALUES = [
+  "processing",
+  "ready",
+  "failed",
+] as const
+
+export const documentStatusSchema = z.enum(DOCUMENT_STATUS_VALUES)
+export type FaxDocumentStatus = z.infer<typeof documentStatusSchema>
+export const DOCUMENT_STATUS = documentStatusSchema.enum
+
 /** Payment lifecycle shared by the browser session and persisted PayMe sale. */
 export const PAYMENT_STATUS_VALUES = [
   "initiated",

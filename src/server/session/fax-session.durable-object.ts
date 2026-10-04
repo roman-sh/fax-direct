@@ -10,14 +10,17 @@ import {
 } from "@/server/session/fax-session.schema"
 import type { FaxSessionEvent } from "@/shared/session/fax-session-event"
 import {
+  type FaxDocumentErrorCode,
   type FaxSessionDocument,
   type FaxSessionData,
+  type FaxSessionDocumentFile,
   type FaxSessionFax,
   type FaxSessionPayment,
   type FaxSessionQuote,
   type FaxSessionRecipient,
 } from "@/shared/session/fax-session.types"
 import {
+  DOCUMENT_STATUS,
   FAX_STATUS,
   PAYMENT_STATUS,
   type FaxPaymentStatus,
@@ -185,18 +188,47 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   }
 
   /**
-   * Stores the verified R2 document and re-prices the session. The quote is a
-   * function of the document and the recipient together, so it is written here
-   * whenever a recipient already exists and left untouched when one does not.
-   * Replacing the document therefore re-prices rather than clearing, which
-   * matters when the flow returns to this step: mid-flow, because the customer
-   * reopened the document card; after payment, because a failed fax offered to
-   * replace an unusable PDF.
+   * Initializes the session document after its bytes have been stored in R2.
+   * The R2 key, original name, and byte size are already known, while the page
+   * count is deliberately cleared until inspection finishes. The document is
+   * published as `processing`, and any quote for the replaced document is
+   * removed because only a ready document may be priced or sent.
    */
-  async setDocument(
-    document: FaxSessionDocument,
-    quote: FaxSessionQuote
+  async initializeDocument(
+    document: FaxSessionDocumentFile
   ): Promise<FaxSessionData> {
+    return this.updateSession(() => {
+      this.db
+        .update(faxSessionTable)
+        .set({
+          documentObjectKey: document.objectKey,
+          documentOriginalName: document.originalName,
+          documentPageCount: null,
+          documentSizeBytes: document.sizeBytes,
+          documentStatus: DOCUMENT_STATUS.processing,
+          documentError: null,
+          quoteAmount: null,
+          quoteCurrency: null,
+          ...this.clearFailedDelivery(),
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(faxSessionTable.id, SESSION_ROW_ID))
+        .run()
+
+      return true
+    })
+  }
+
+  /**
+   * Finalizes a processing document after successful inspection. The existing
+   * R2 metadata remains unchanged; only the discovered page count and `ready`
+   * status are added. The quote is restored when a recipient already exists
+   * because pricing depends on both inputs.
+   */
+  async finalizeDocument(
+    pageCount: number,
+    quote: FaxSessionQuote
+  ): Promise<FaxSessionData | null> {
     return this.updateSession(() => {
       const hasRecipient =
         this.db
@@ -210,23 +242,58 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
           )
           .get() !== undefined
 
-      this.db
+      const updated = this.db
         .update(faxSessionTable)
         .set({
-          documentObjectKey: document.objectKey,
-          documentOriginalName: document.originalName,
-          documentPageCount: document.pageCount,
-          documentSizeBytes: document.sizeBytes,
+          documentPageCount: pageCount,
+          documentStatus: DOCUMENT_STATUS.ready,
+          documentError: null,
           ...(hasRecipient
             ? { quoteAmount: quote.amount, quoteCurrency: quote.currency }
             : {}),
-          ...this.clearFailedDelivery(),
           updatedAt: sql`CURRENT_TIMESTAMP`,
         })
-        .where(eq(faxSessionTable.id, SESSION_ROW_ID))
-        .run()
+        .where(
+          and(
+            eq(faxSessionTable.id, SESSION_ROW_ID),
+            eq(faxSessionTable.documentStatus, DOCUMENT_STATUS.processing)
+          )
+        )
+        .returning({ id: faxSessionTable.id })
+        .get()
 
-      return true
+      return updated !== undefined
+    })
+  }
+
+  /**
+   * Ends processing with a stable error code for the browser. The stored R2
+   * metadata remains available so the failed document can still be identified.
+   */
+  async failDocument(
+    error: FaxDocumentErrorCode
+  ): Promise<FaxSessionData | null> {
+    return this.updateSession(() => {
+      const updated = this.db
+        .update(faxSessionTable)
+        .set({
+          documentStatus: DOCUMENT_STATUS.failed,
+          documentError: error,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(
+          and(
+            eq(faxSessionTable.id, SESSION_ROW_ID),
+            eq(
+              faxSessionTable.documentStatus,
+              DOCUMENT_STATUS.processing
+            )
+          )
+        )
+        .returning({ id: faxSessionTable.id })
+        .get()
+
+      return updated !== undefined
     })
   }
 
@@ -234,7 +301,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
    * Stores the recipient and re-prices the session. The quote is written in the
    * same statement because the guard below already requires a document, so both
    * inputs are present whenever this succeeds. Returns null when no document
-   * exists yet, which is the same rule `setDocument` applies from its side.
+   * exists yet, which is the same rule `finalizeDocument` applies from its side.
    */
   async setRecipient(
     recipient: FaxSessionRecipient,
@@ -254,7 +321,10 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
         .where(
           and(
             eq(faxSessionTable.id, SESSION_ROW_ID),
-            isNotNull(faxSessionTable.documentObjectKey)
+            eq(
+              faxSessionTable.documentStatus,
+              DOCUMENT_STATUS.ready
+            )
           )
         )
         .returning({ id: faxSessionTable.id })
@@ -403,7 +473,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
     // Delivery requires a completed payment and both provider inputs.
     if (
       row.paymentStatus !== PAYMENT_STATUS.paid ||
-      document === null ||
+      document?.status !== DOCUMENT_STATUS.ready ||
       recipientFromRow(row) === null
     ) {
       return null
@@ -568,22 +638,57 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
 
 // SQL row mappers
 
-/** Builds a complete document value, or null when any document column is absent. */
+/** Reconstructs the stored document and its lifecycle. */
 function documentFromRow(row: FaxSessionRow): FaxSessionDocument | null {
+  // A session without an R2 object key has no uploaded document yet.
+  if (!row.documentObjectKey) return null
+
+  // Every stored document must have the metadata shared by all three states.
   if (
-    row.documentObjectKey === null ||
-    row.documentOriginalName === null ||
-    row.documentPageCount === null ||
-    row.documentSizeBytes === null
+    !row.documentOriginalName ||
+    !row.documentSizeBytes ||
+    !row.documentStatus
   ) {
-    return null
+    throw new Error("Stored document state is incomplete.")
   }
 
-  return {
+  const file: FaxSessionDocumentFile = {
     objectKey: row.documentObjectKey,
     originalName: row.documentOriginalName,
-    pageCount: row.documentPageCount,
     sizeBytes: row.documentSizeBytes,
+  }
+
+  switch (row.documentStatus) {
+    // The file is in R2, but PDF validation and page counting are not finished.
+    case DOCUMENT_STATUS.processing:
+      return {
+        ...file,
+        status: DOCUMENT_STATUS.processing,
+      }
+
+    case DOCUMENT_STATUS.ready:
+      // A ready document must include the page count found by inspection.
+      if (!row.documentPageCount) {
+        throw new Error("Ready document has no page count.")
+      }
+
+      return {
+        ...file,
+        status: DOCUMENT_STATUS.ready,
+        pageCount: row.documentPageCount,
+      }
+
+    case DOCUMENT_STATUS.failed:
+      // A failed document must include the stable browser-facing error code.
+      if (!row.documentError) {
+        throw new Error("Failed document has no error code.")
+      }
+
+      return {
+        ...file,
+        status: DOCUMENT_STATUS.failed,
+        error: row.documentError,
+      }
   }
 }
 

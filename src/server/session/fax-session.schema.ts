@@ -1,3 +1,10 @@
+/**
+ * Manually maintained source of truth for each FaxSession Durable Object's
+ * private SQLite database. After changing this file, `npm run db:generate`
+ * creates the SQL migration files under `drizzle/fax-session`. When a Durable
+ * Object starts, its constructor applies any migration that its own database
+ * has not run yet. This is per-session storage, not the application's D1.
+ */
 import { sql } from "drizzle-orm"
 import {
   check,
@@ -7,16 +14,16 @@ import {
 } from "drizzle-orm/sqlite-core"
 
 import {
+  DOCUMENT_STATUS_VALUES,
   FAX_PROGRESS_STATUSES,
   PAYMENT_STATUS_VALUES,
 } from "@/shared/session/fax-session-status"
-import { FAX_FAILURE_SEMANTIC_CODES } from "@/shared/session/fax-session.types"
+import {
+  DOCUMENT_ERROR_CODES,
+  FAX_FAILURE_SEMANTIC_CODES,
+} from "@/shared/session/fax-session.types"
 
-/**
- * One Durable Object owns one database, so this table always contains exactly
- * one fax-session row. Drizzle infers query types and generates migrations from
- * this definition, keeping the SQLite and TypeScript shapes in sync.
- */
+/** The private database contains exactly one row for its owning fax session. */
 export const faxSessionTable = sqliteTable(
   "fax_session",
   {
@@ -25,6 +32,12 @@ export const faxSessionTable = sqliteTable(
     documentOriginalName: text("document_original_name"),
     documentPageCount: integer("document_page_count"),
     documentSizeBytes: integer("document_size_bytes"),
+    documentStatus: text("document_status", {
+      enum: DOCUMENT_STATUS_VALUES,
+    }),
+    documentError: text("document_error", {
+      enum: DOCUMENT_ERROR_CODES,
+    }),
     recipientDisplayValue: text("recipient_display_value"),
     recipientE164: text("recipient_e164"),
     quoteAmount: text("quote_amount"),
@@ -56,6 +69,22 @@ export const faxSessionTable = sqliteTable(
   },
   (table) => [
     check("fax_session_singleton", sql`${table.id} = 1`),
+    check(
+      "fax_session_document_status",
+      sql`${table.documentStatus} IS NULL OR ${table.documentStatus} IN (${sql.raw(
+        DOCUMENT_STATUS_VALUES.map((status) => `'${status}'`).join(", ")
+      )})`
+    ),
+    check(
+      "fax_session_document_error",
+      sql`${table.documentError} IS NULL OR ${table.documentError} IN (${sql.raw(
+        DOCUMENT_ERROR_CODES.map((code) => `'${code}'`).join(", ")
+      )})`
+    ),
+    check(
+      "fax_session_document_status_consistency",
+      sql`(${table.documentStatus} = 'failed' AND ${table.documentError} IS NOT NULL) OR (${table.documentStatus} IS NULL OR ${table.documentStatus} != 'failed') AND ${table.documentError} IS NULL`
+    ),
     check(
       "fax_session_quote_currency",
       sql`${table.quoteCurrency} IS NULL OR ${table.quoteCurrency} = 'ILS'`

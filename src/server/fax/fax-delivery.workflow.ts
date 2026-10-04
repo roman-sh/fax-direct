@@ -12,10 +12,14 @@ import {
 import { FaxTransmissionRepository } from "@/server/fax/fax-transmission.repository"
 import { createInterfaxService } from "@/server/fax/interfax.service"
 import { createR2InterfaxDocumentSource } from "@/server/fax/r2-interfax-document-source"
-import { FAX_STATUS, PAYMENT_STATUS } from "@/shared/session/fax-session-status"
+import {
+  DOCUMENT_STATUS,
+  FAX_STATUS,
+  PAYMENT_STATUS,
+} from "@/shared/session/fax-session-status"
 import type {
-  FaxSessionDocument,
   FaxSessionFax,
+  FaxSessionReadyDocument,
 } from "@/shared/session/fax-session.types"
 
 const FAX_POLLING_COORDINATOR_NAME = "global"
@@ -28,7 +32,7 @@ export type FaxDeliveryWorkflowParams = {
 }
 
 type FaxParams = {
-  document: FaxSessionDocument
+  document: FaxSessionReadyDocument
   recipientE164: string
 }
 
@@ -59,7 +63,10 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
       // PDF and phone validation happened before they entered FaxSession. The
       // Workflow checks only that the values required for delivery are present.
       // The session was already initialized as `preparing` for this attempt.
-      if (!session.document || !session.recipient) {
+      if (
+        session.document?.status !== DOCUMENT_STATUS.ready ||
+        !session.recipient
+      ) {
         throw new Error(`Fax session ${sessionId} is missing delivery data.`)
       }
 

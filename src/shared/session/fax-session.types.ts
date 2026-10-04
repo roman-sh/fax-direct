@@ -3,12 +3,62 @@ import type {
   FaxProgressStatus,
 } from "@/shared/session/fax-session-status"
 
-export type FaxSessionDocument = {
+/** Fields known as soon as the uploaded file has been stored in R2. */
+export type FaxSessionDocumentFile = {
   objectKey: string
   originalName: string
-  pageCount: number
   sizeBytes: number
 }
+
+/** A successfully inspected document that is safe to use for fax delivery. */
+export type FaxSessionReadyDocument = FaxSessionDocumentFile & {
+  status: "ready"
+  pageCount: number
+}
+
+export const DOCUMENT_ERROR_CODES = [
+  "ENCRYPTED_PDF",
+  "EMPTY_PDF",
+  "FILE_TOO_LARGE",
+  "INVALID_FILE_TYPE",
+  "INVALID_PDF",
+  "TOO_MANY_PAGES",
+  "PROCESSING_FAILED",
+] as const
+
+export type FaxDocumentErrorCode =
+  (typeof DOCUMENT_ERROR_CODES)[number]
+
+/**
+ * One stored document throughout its lifecycle.
+ *
+ * Every variant contains the R2 key, original filename, and byte size from
+ * `FaxSessionDocumentFile`. Its `status` determines what additional data is
+ * available:
+ *
+ * In these examples, `file` is a `FaxSessionDocumentFile` value containing
+ * the metadata shared by every state:
+ *
+ * - `{ status: "processing", ...file }` — inspection has not finished.
+ * - `{ status: "ready", ...file, pageCount: 2 }` — ready for fax delivery.
+ * - `{ status: "failed", ...file, error: "INVALID_PDF" }` — inspection failed.
+ *
+ * TypeScript narrows the union after checking the status. For example,
+ * `document.pageCount` is available inside
+ * `if (document.status === "ready")`.
+ */
+export type FaxSessionDocument =
+  | (FaxSessionDocumentFile & {
+      status: "processing"
+    })
+  | (FaxSessionDocumentFile & {
+      status: "ready"
+      pageCount: number
+    })
+  | (FaxSessionDocumentFile & {
+      status: "failed"
+      error: FaxDocumentErrorCode
+    })
 
 export type FaxSessionRecipient = {
   displayValue: string

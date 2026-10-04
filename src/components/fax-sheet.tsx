@@ -24,6 +24,7 @@ import { Card } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { formatFaxQuote } from "@/lib/format-fax-quote"
 import {
+  DOCUMENT_STATUS,
   FAX_STATUS,
   PAYMENT_STATUS,
 } from "@/shared/session/fax-session-status"
@@ -126,6 +127,10 @@ function HydratedFaxFlow({
   // the fax number before retrying within the same paid session.
   const isDeliveryLocked =
     isDeliveryPhase && session.fax?.status !== FAX_STATUS.FAILED
+  const readyDocument =
+    session.document?.status === DOCUMENT_STATUS.ready
+      ? session.document
+      : null
 
   // While the paid fax may not be edited the flow snaps to the delivery-status
   // card and stays there. Keying on the lock also pulls a tab that was editing
@@ -136,7 +141,7 @@ function HydratedFaxFlow({
     }
   }, [isDeliveryLocked])
   const [recipient, setRecipient] = useState(
-    session.document ? (session.recipient?.displayValue ?? "") : ""
+    readyDocument ? (session.recipient?.displayValue ?? "") : ""
   )
   const documentUpload = useDocumentUpload()
   const payment = usePayment()
@@ -146,13 +151,13 @@ function HydratedFaxFlow({
     maxFileBytes,
   })
 
-  const storedDocument = file ? null : session.document
+  const storedDocument = file ? null : readyDocument
   const fileSummary =
     file?.name ?? session.document?.originalName ?? "מסמך PDF"
   const recipientSummary =
     session.recipient?.displayValue ??
     (recipient.trim() || "מספר הנמען")
-  const pageCount = file ? null : session.document?.pageCount ?? null
+  const pageCount = file ? null : readyDocument?.pageCount ?? null
 
   // The button owns only the instant before D0 publishes a payment state.
   // Once a session payment arrives, WebSocket state becomes authoritative.
@@ -169,7 +174,7 @@ function HydratedFaxFlow({
 
   async function handleDocumentContinue() {
     if (!file) {
-      if (session.document) {
+      if (readyDocument) {
         setActiveStep(2)
       }
 
@@ -182,8 +187,8 @@ function HydratedFaxFlow({
 
     const isAlreadyStored =
       documentUpload.state.status === "ready" &&
-      session.document?.originalName === file.name &&
-      session.document.sizeBytes === file.size
+      readyDocument?.originalName === file.name &&
+      readyDocument.sizeBytes === file.size
 
     if (isAlreadyStored) {
       setActiveStep(2)
@@ -310,11 +315,11 @@ function HydratedFaxFlow({
           {isDeliveryPhase && !isAwaitingResend ? (
             <FaxDeliveryStatusStep
               fax={session.fax}
-              fileSummary={session.document?.originalName ?? fileSummary}
+              fileSummary={readyDocument?.originalName ?? fileSummary}
               recipientSummary={
                 session.recipient?.displayValue ?? recipientSummary
               }
-              pageCount={session.document?.pageCount ?? pageCount}
+              pageCount={readyDocument?.pageCount ?? pageCount}
               locale={locale}
               beat={beat}
               retryState={faxRetry.state}
@@ -326,11 +331,11 @@ function HydratedFaxFlow({
             />
           ) : (
             <PaymentStep
-              fileSummary={session.document?.originalName ?? fileSummary}
+              fileSummary={readyDocument?.originalName ?? fileSummary}
               recipientSummary={
                 session.recipient?.displayValue ?? recipientSummary
               }
-              pageCount={session.document?.pageCount ?? pageCount}
+              pageCount={readyDocument?.pageCount ?? pageCount}
               payment={session.payment}
               paymentStart={payment.state}
               quote={session.quote}
@@ -360,11 +365,14 @@ function getRestoredStep(session: FaxSessionData): FaxStep {
     return 3
   }
 
-  if (session.document && session.recipient && session.quote) {
+  const hasReadyDocument =
+    session.document?.status === DOCUMENT_STATUS.ready
+
+  if (hasReadyDocument && session.recipient && session.quote) {
     return 3
   }
 
-  return session.document ? 2 : 1
+  return hasReadyDocument ? 2 : 1
 }
 
 function SessionStateCard({ children }: { children: ReactNode }) {

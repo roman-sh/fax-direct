@@ -4,7 +4,7 @@
  * object cannot be submitted under stale session metadata.
  */
 import type { InterfaxDocumentSource } from "@/server/fax/interfax.service"
-import type { FaxSessionDocument } from "@/shared/session/fax-session.types"
+import type { FaxSessionReadyDocument } from "@/shared/session/fax-session.types"
 
 export type R2InterfaxDocumentSourceErrorCode =
   | "DOCUMENT_CHANGED"
@@ -30,7 +30,7 @@ export class R2InterfaxDocumentSourceError extends Error {
  */
 export async function createR2InterfaxDocumentSource(
   bucket: R2Bucket,
-  document: FaxSessionDocument
+  document: FaxSessionReadyDocument
 ): Promise<InterfaxDocumentSource> {
   const object = await bucket.head(document.objectKey)
 
