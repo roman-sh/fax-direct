@@ -141,10 +141,11 @@ function Deck({
         locked={locked}
       >
         <DocumentStep
+          document={hasDocument ? DOCUMENT : null}
           file={null}
           storedDocument={hasDocument ? DOCUMENT : null}
           selection={{ status: "empty" }}
-          upload={{ status: hasDocument ? "ready" : "idle" }}
+          upload={{ status: "idle" }}
           maxFileBytes={10 * 1024 * 1024}
           maxPages={10}
           onSelectFile={() => {}}

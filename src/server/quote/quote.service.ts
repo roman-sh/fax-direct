@@ -1,5 +1,3 @@
-import "server-only"
-
 import type { MarketConfig } from "@/server/config/market-config.schema"
 import type { FaxSessionQuote } from "@/shared/session/fax-session.types"
 

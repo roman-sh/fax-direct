@@ -131,6 +131,7 @@ function HydratedFaxFlow({
     session.document?.status === DOCUMENT_STATUS.ready
       ? session.document
       : null
+  const [isAwaitingDocument, setIsAwaitingDocument] = useState(false)
 
   // While the paid fax may not be edited the flow snaps to the delivery-status
   // card and stays there. Keying on the lock also pulls a tab that was editing
@@ -151,6 +152,25 @@ function HydratedFaxFlow({
     maxFileBytes,
   })
 
+  // The upload request returns as soon as durable preparation starts. Keep the
+  // document card open until the WebSocket publishes its final state.
+  useEffect(() => {
+    if (!isAwaitingDocument) {
+      return
+    }
+
+    switch (session.document?.status) {
+      case DOCUMENT_STATUS.ready:
+        setIsAwaitingDocument(false)
+        setActiveStep(2)
+        break
+
+      case DOCUMENT_STATUS.failed:
+        setIsAwaitingDocument(false)
+        break
+    }
+  }, [isAwaitingDocument, session.document?.status])
+
   const storedDocument = file ? null : readyDocument
   const fileSummary =
     file?.name ?? session.document?.originalName ?? "מסמך PDF"
@@ -168,6 +188,7 @@ function HydratedFaxFlow({
   }, [session.payment, payment.reset])
 
   function handleFileSelection(nextFile: File | null) {
+    setIsAwaitingDocument(false)
     documentUpload.reset()
     selectFile(nextFile)
   }
@@ -185,20 +206,26 @@ function HydratedFaxFlow({
       return
     }
 
-    const isAlreadyStored =
-      documentUpload.state.status === "ready" &&
-      readyDocument?.originalName === file.name &&
-      readyDocument.sizeBytes === file.size
+    // An empty session has no WebSocket yet, so the accepted HTTP response
+    // must publish `processing` locally and cause the socket to connect. When
+    // replacing an existing document, the socket is already authoritative;
+    // applying the earlier HTTP snapshot could overwrite a faster final event.
+    const needsSessionBootstrap = session.document === null
 
-    if (isAlreadyStored) {
-      setActiveStep(2)
+    setIsAwaitingDocument(true)
+    const updatedSession = await documentUpload.upload(file)
+
+    if (!updatedSession) {
+      setIsAwaitingDocument(false)
       return
     }
 
-    const updatedSession = await documentUpload.upload(file)
-
-    if (updatedSession) {
+    if (needsSessionBootstrap) {
       onSessionChange(updatedSession)
+    }
+
+    if (updatedSession.document?.status === DOCUMENT_STATUS.ready) {
+      setIsAwaitingDocument(false)
       setActiveStep(2)
     }
   }
@@ -256,6 +283,7 @@ function HydratedFaxFlow({
           locked={isDeliveryLocked}
         >
           <DocumentStep
+            document={session.document}
             file={file}
             storedDocument={storedDocument}
             selection={selection}

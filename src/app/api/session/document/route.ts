@@ -1,57 +1,29 @@
 /**
- * Validates and stores the PDF selected for the current fax session.
+ * Accepts one document for the current fax session.
  *
- * The browser performs the same inspection first for immediate feedback, but
- * this route is authoritative. It loads the current market limits, validates
- * and counts the uploaded PDF, stores its bytes in R2 under the session code,
- * then records the document details in the session's Durable Object.
+ * The route claims the session before touching its shared R2 object, stores the
+ * original bytes, starts durable preparation, and returns the authoritative
+ * `processing` session without waiting for PDF inspection.
  */
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 
-import {
-  getMarketConfig,
-  MarketConfigError,
-} from "@/server/config/market-config.service"
-import { calculateFaxQuote } from "@/server/quote/quote.service"
+import type { DocumentPreparationWorkflowParams } from "@/server/document/document-preparation.workflow"
 import { getOrCreateFaxBrowserSession } from "@/server/session/fax-browser-session.service"
-import {
-  inspectPdfFile,
-  PdfInspectionError,
-  type PdfInspectionErrorCode,
-} from "@/shared/pdf/inspect-pdf"
 import type { FaxSessionDocumentFile } from "@/shared/session/fax-session.types"
 
 export const runtime = "nodejs"
 
-type MarketConfig = Awaited<ReturnType<typeof getMarketConfig>>
-
 type ErrorCode =
-  | "CONFIG_UNAVAILABLE"
+  | "DOCUMENT_PROCESSING"
+  | "DOCUMENT_UPLOAD_FAILED"
   | "FILE_REQUIRED"
-  | "INTERNAL_ERROR"
   | "INVALID_REQUEST"
-  | "SESSION_UNAVAILABLE"
-  | "STORAGE_UNAVAILABLE"
 
 export async function POST(request: Request): Promise<Response> {
-  let config: MarketConfig
-
-  try {
-    config = await getMarketConfig("IL")
-  } catch (error) {
-    if (error instanceof MarketConfigError) {
-      return errorResponse(
-        "CONFIG_UNAVAILABLE",
-        "השירות אינו זמין כרגע. נסו שוב מאוחר יותר.",
-        503
-      )
-    }
-
-    throw error
-  }
-
   let file: File
 
+  // The route only verifies that multipart parsing produced a file. Content,
+  // size, and page validation belong to the durable preparation Workflow.
   try {
     const formData = await request.formData()
     const uploadedFile = formData.get("file")
@@ -69,29 +41,10 @@ export async function POST(request: Request): Promise<Response> {
     )
   }
 
-  let pageCount: number
-
-  try {
-    pageCount = (await inspectPdfFile(file, config.fax)).pageCount
-  } catch (error) {
-    if (error instanceof PdfInspectionError) {
-      return errorResponse(
-        error.code,
-        error.message,
-        pdfInspectionStatus(error.code)
-      )
-    }
-
-    console.error("Unexpected PDF inspection error:", error)
-    return errorResponse(
-      "INTERNAL_ERROR",
-      "לא הצלחנו לבדוק את הקובץ. נסו שוב.",
-      500
-    )
-  }
-
   let sessionId: string
 
+  // The encrypted browser cookie identifies the Durable Object and R2 key.
+  // A browser without a session receives a new one here.
   try {
     sessionId = (
       await getOrCreateFaxBrowserSession()
@@ -99,7 +52,7 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     console.error("Could not identify fax session:", error)
     return errorResponse(
-      "SESSION_UNAVAILABLE",
+      "DOCUMENT_UPLOAD_FAILED",
       "לא הצלחנו לשמור את המסמך. נסו שוב.",
       503
     )
@@ -110,58 +63,86 @@ export async function POST(request: Request): Promise<Response> {
     originalName: file.name,
     sizeBytes: file.size,
   }
-
   const { env } = getCloudflareContext()
+  const sessionObject = env.FAX_SESSIONS.getByName(sessionId)
 
+  let processingSession
+
+  // Record the accepted document as processing. The client will keep showing
+  // this state while the file is stored and the preparation Workflow validates it.
   try {
-    await env.FAX_DOCUMENTS.put(sessionId, file, {
-      httpMetadata: {
-        contentType: "application/pdf",
-      },
-    })
+    processingSession = await sessionObject.initializeDocument(document)
   } catch (error) {
-    console.error("Could not store fax document in R2:", error)
+    console.error("Could not initialize fax document:", error)
     return errorResponse(
-      "STORAGE_UNAVAILABLE",
+      "DOCUMENT_UPLOAD_FAILED",
       "לא הצלחנו לשמור את המסמך. נסו שוב.",
       503
     )
   }
 
-  try {
-    const sessionObject = env.FAX_SESSIONS.getByName(sessionId)
-
-    // This records the R2 file as `processing`. For now, PDF inspection still
-    // happened synchronously above, so this route immediately finalizes it.
-    // The document Workflow will eventually own the finalization call.
-    await sessionObject.initializeDocument(document)
-
-    const session = await sessionObject.finalizeDocument(
-      pageCount,
-      calculateFaxQuote(config)
+  if (!processingSession) {
+    // `initializeDocument` returns null when another document is already being
+    // processed for this session. Reject this upload until processing finishes.
+    return errorResponse(
+      "DOCUMENT_PROCESSING",
+      "מסמך אחר כבר נמצא בעיבוד. המתינו לסיום העיבוד.",
+      409
     )
+  }
 
-    if (!session) {
-      throw new Error("Document was not processing during finalization.")
-    }
-
-    return Response.json(session, {
-      headers: {
-        "Cache-Control": "no-store",
+  try {
+    // Store the uploaded file in R2 under the session ID. Preserve its MIME type
+    // because the preparation Workflow reconstructs the File from R2.
+    await env.FAX_DOCUMENTS.put(sessionId, file, {
+      httpMetadata: {
+        contentType: file.type,
       },
     })
+
+    // Start the document preparation Workflow after the file is stored in R2.
+    // The Workflow uses the session ID to load and process the uploaded file.
+    await env.DOCUMENT_PREPARATION_WORKFLOW.create({
+      params: {
+        sessionId,
+      } satisfies DocumentPreparationWorkflowParams,
+    })
   } catch (error) {
-    console.error("Could not update fax session document:", error)
+    console.error("Could not start document preparation:", error)
+
+    // If the R2 upload or Workflow start fails, mark the document as failed so
+    // the user can retry the upload.
+    try {
+      await sessionObject.failDocument("PROCESSING_FAILED")
+    } catch (failureError) {
+      console.error("Could not publish document preparation failure:", {
+        sessionId,
+        error:
+          failureError instanceof Error
+            ? failureError.message
+            : String(failureError),
+      })
+    }
+
     return errorResponse(
-      "SESSION_UNAVAILABLE",
-      "המסמך נשמר, אך לא הצלחנו לעדכן את השליחה. נסו שוב.",
+      "DOCUMENT_UPLOAD_FAILED",
+      "לא הצלחנו לשמור את המסמך. נסו שוב.",
       503
     )
   }
+
+  // Tell the frontend that the upload was accepted and the document is being
+  // prepared. The Workflow later publishes the final `ready` or `failed` state.
+  return Response.json(processingSession, {
+    status: 202,
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  })
 }
 
 function errorResponse(
-  code: ErrorCode | PdfInspectionErrorCode,
+  code: ErrorCode,
   message: string,
   status: number
 ): Response {
@@ -174,16 +155,4 @@ function errorResponse(
       },
     }
   )
-}
-
-function pdfInspectionStatus(code: PdfInspectionErrorCode): number {
-  if (code === "FILE_TOO_LARGE") {
-    return 413
-  }
-
-  if (code === "INVALID_FILE_TYPE") {
-    return 415
-  }
-
-  return 422
 }

@@ -1,31 +1,24 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useState } from "react"
 
 import type { FaxSessionData } from "@/shared/session/fax-session.types"
 
 export type DocumentUploadState =
   | { status: "idle" }
   | { status: "uploading" }
-  | { status: "ready" }
   | { status: "error"; message: string }
 
 type ErrorResponse = {
   message?: string
 }
 
-/** Uploads the client-validated PDF and returns authoritative session state. */
+/** Tracks the HTTP upload itself; document processing lives in the session. */
 export function useDocumentUpload() {
   const [state, setState] =
     useState<DocumentUploadState>({ status: "idle" })
-  const uploadedFile = useRef<File | null>(null)
-  const uploadedSession = useRef<FaxSessionData | null>(null)
 
   async function upload(file: File): Promise<FaxSessionData | null> {
-    if (uploadedFile.current === file && state.status === "ready") {
-      return uploadedSession.current
-    }
-
     setState({ status: "uploading" })
 
     try {
@@ -49,9 +42,7 @@ export function useDocumentUpload() {
       }
 
       const session = result as FaxSessionData
-      uploadedFile.current = file
-      uploadedSession.current = session
-      setState({ status: "ready" })
+      setState({ status: "idle" })
       return session
     } catch (error) {
       setState({
@@ -66,8 +57,6 @@ export function useDocumentUpload() {
   }
 
   function reset() {
-    uploadedFile.current = null
-    uploadedSession.current = null
     setState({ status: "idle" })
   }
 

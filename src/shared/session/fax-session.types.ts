@@ -3,7 +3,7 @@ import type {
   FaxProgressStatus,
 } from "@/shared/session/fax-session-status"
 
-/** Fields known as soon as the uploaded file has been stored in R2. */
+/** File metadata recorded when a session accepts an upload for processing. */
 export type FaxSessionDocumentFile = {
   objectKey: string
   originalName: string
@@ -30,7 +30,7 @@ export type FaxDocumentErrorCode =
   (typeof DOCUMENT_ERROR_CODES)[number]
 
 /**
- * One stored document throughout its lifecycle.
+ * One accepted document throughout its lifecycle.
  *
  * Every variant contains the R2 key, original filename, and byte size from
  * `FaxSessionDocumentFile`. Its `status` determines what additional data is

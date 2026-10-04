@@ -15,9 +15,15 @@ import { CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import { ACCEPTED_DOCUMENT_FORMATS } from "@/shared/document/document-formats"
-import type { FaxSessionReadyDocument } from "@/shared/session/fax-session.types"
+import { DOCUMENT_STATUS } from "@/shared/session/fax-session-status"
+import type {
+  FaxDocumentErrorCode,
+  FaxSessionDocument,
+  FaxSessionReadyDocument,
+} from "@/shared/session/fax-session.types"
 
 type DocumentStepProps = {
+  document: FaxSessionDocument | null
   file: File | null
   storedDocument: FaxSessionReadyDocument | null
   selection: DocumentSelectionState
@@ -29,6 +35,7 @@ type DocumentStepProps = {
 }
 
 export function DocumentStep({
+  document,
   file,
   storedDocument,
   selection,
@@ -41,13 +48,21 @@ export function DocumentStep({
   const hasStoredDocument = file === null && storedDocument !== null
   const isValid = selection.status === "valid" || hasStoredDocument
   const isUploading = upload.status === "uploading"
+  const isProcessing = document?.status === DOCUMENT_STATUS.processing
+  const isBusy = isUploading || isProcessing
   const hasError =
-    selection.status === "invalid" || upload.status === "error"
-  const displayedName = file?.name ?? storedDocument?.originalName
+    selection.status === "invalid" ||
+    upload.status === "error" ||
+    document?.status === DOCUMENT_STATUS.failed
+  const displayedName =
+    file?.name ?? document?.originalName ?? storedDocument?.originalName
   const statusMessage = getDocumentStatusMessage(
     selection,
     upload,
-    hasStoredDocument ? storedDocument : null
+    hasStoredDocument ? storedDocument : null,
+    document,
+    maxFileBytes,
+    maxPages
   )
 
   function handleFileDrop(event: DragEvent<HTMLLabelElement>) {
@@ -68,7 +83,7 @@ export function DocumentStep({
           accept={ACCEPTED_DOCUMENT_FORMATS.map(
             (format) => `.${format}`
           ).join(",")}
-          disabled={isUploading}
+          disabled={isBusy}
           className="peer sr-only"
           onChange={(event) => {
             onSelectFile(event.currentTarget.files?.item(0) ?? null)
@@ -83,7 +98,7 @@ export function DocumentStep({
             "hover:border-brand/60 hover:bg-brand-subtle/60 peer-focus-visible:border-ring peer-focus-visible:ring-3 peer-focus-visible:ring-ring/40",
             isValid && "border-success/45 bg-success-subtle/45",
             hasError && "border-destructive/45 bg-destructive/5",
-            isUploading && "pointer-events-none cursor-wait"
+            isBusy && "pointer-events-none cursor-wait"
           )}
         >
           <span
@@ -93,7 +108,7 @@ export function DocumentStep({
               hasError && "text-destructive"
             )}
           >
-            {isUploading ? (
+            {isBusy ? (
               <Spinner className="size-7" />
             ) : hasError ? (
               <CircleAlert className="size-7" />
@@ -143,7 +158,7 @@ export function DocumentStep({
           <Button
             type="button"
             size="lg"
-            disabled={!isValid || isUploading}
+            disabled={!isValid || isBusy}
             onClick={onContinue}
             className="min-w-32"
           >
@@ -151,6 +166,11 @@ export function DocumentStep({
               <>
                 <Spinner data-icon="inline-start" />
                 מעלים…
+              </>
+            ) : isProcessing ? (
+              <>
+                <Spinner data-icon="inline-start" />
+                מעבדים…
               </>
             ) : (
               <>
@@ -168,10 +188,17 @@ export function DocumentStep({
 function getDocumentStatusMessage(
   selection: DocumentSelectionState,
   upload: DocumentUploadState,
-  storedDocument: FaxSessionReadyDocument | null
+  storedDocument: FaxSessionReadyDocument | null,
+  document: FaxSessionDocument | null,
+  maxFileBytes: number,
+  maxPages: number
 ): string | null {
   if (upload.status === "uploading") {
     return "מעלים ושומרים את המסמך…"
+  }
+
+  if (document?.status === DOCUMENT_STATUS.processing) {
+    return "בודקים ומכינים את המסמך…"
   }
 
   if (upload.status === "error") {
@@ -180,6 +207,14 @@ function getDocumentStatusMessage(
 
   if (selection.status === "invalid") {
     return selection.message
+  }
+
+  if (document?.status === DOCUMENT_STATUS.failed) {
+    return getDocumentErrorMessage(
+      document.error,
+      maxFileBytes,
+      maxPages
+    )
   }
 
   if (storedDocument) {
@@ -191,6 +226,29 @@ function getDocumentStatusMessage(
   }
 
   return "או לחצו כדי לבחור קובץ מהמחשב"
+}
+
+function getDocumentErrorMessage(
+  error: FaxDocumentErrorCode,
+  maxFileBytes: number,
+  maxPages: number
+): string {
+  switch (error) {
+    case "ENCRYPTED_PDF":
+      return "לא ניתן לשלוח קובץ PDF שדורש סיסמה לפתיחה."
+    case "EMPTY_PDF":
+      return "קובץ ה-PDF ריק."
+    case "FILE_TOO_LARGE":
+      return `גודל הקובץ המרבי הוא ${formatMegabytes(maxFileBytes)}MB.`
+    case "INVALID_FILE_TYPE":
+      return "ניתן להעלות קובצי PDF בלבד."
+    case "INVALID_PDF":
+      return "לא הצלחנו לקרוא את קובץ ה-PDF."
+    case "TOO_MANY_PAGES":
+      return `ניתן לשלוח עד ${maxPages} עמודים בפקס.`
+    case "PROCESSING_FAILED":
+      return "לא הצלחנו להכין את המסמך. נסו שוב."
+  }
 }
 
 function formatPageCount(pageCount: number): string {

@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers"
-import { and, eq, isNotNull, sql } from "drizzle-orm"
+import { and, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/durable-sqlite"
 import { migrate } from "drizzle-orm/durable-sqlite/migrator"
 
@@ -188,17 +188,17 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   }
 
   /**
-   * Initializes the session document after its bytes have been stored in R2.
-   * The R2 key, original name, and byte size are already known, while the page
-   * count is deliberately cleared until inspection finishes. The document is
-   * published as `processing`, and any quote for the replaced document is
-   * removed because only a ready document may be priced or sent.
+   * Initializes the accepted document with `processing` status.
+   *
+   * On success, `updateSession()` returns the updated session and broadcasts it
+   * to connected clients. Returns `null` without broadcasting when another
+   * document is already processing.
    */
   async initializeDocument(
     document: FaxSessionDocumentFile
-  ): Promise<FaxSessionData> {
+  ): Promise<FaxSessionData | null> {
     return this.updateSession(() => {
-      this.db
+      const updated = this.db
         .update(faxSessionTable)
         .set({
           documentObjectKey: document.objectKey,
@@ -212,10 +212,22 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
           ...this.clearFailedDelivery(),
           updatedAt: sql`CURRENT_TIMESTAMP`,
         })
-        .where(eq(faxSessionTable.id, SESSION_ROW_ID))
-        .run()
+        .where(
+          and(
+            eq(faxSessionTable.id, SESSION_ROW_ID),
+            or(
+              isNull(faxSessionTable.documentStatus),
+              ne(
+                faxSessionTable.documentStatus,
+                DOCUMENT_STATUS.processing
+              )
+            )
+          )
+        )
+        .returning({ id: faxSessionTable.id })
+        .get()
 
-      return true
+      return updated !== undefined
     })
   }
 
@@ -640,7 +652,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
 
 /** Reconstructs the stored document and its lifecycle. */
 function documentFromRow(row: FaxSessionRow): FaxSessionDocument | null {
-  // A session without an R2 object key has no uploaded document yet.
+  // A session without an R2 object key has not accepted a document yet.
   if (!row.documentObjectKey) return null
 
   // Every stored document must have the metadata shared by all three states.
@@ -659,7 +671,7 @@ function documentFromRow(row: FaxSessionRow): FaxSessionDocument | null {
   }
 
   switch (row.documentStatus) {
-    // The file is in R2, but PDF validation and page counting are not finished.
+    // Upload, PDF validation, or page counting has not finished yet.
     case DOCUMENT_STATUS.processing:
       return {
         ...file,

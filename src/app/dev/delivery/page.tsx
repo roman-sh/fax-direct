@@ -169,10 +169,11 @@ function StatusCard({ fax }: { fax: FaxSessionFax | null }) {
         onOpen={setActiveStep}
       >
         <DocumentStep
+          document={DOCUMENT}
           file={null}
           storedDocument={DOCUMENT}
           selection={{ status: "empty" }}
-          upload={{ status: "ready" }}
+          upload={{ status: "idle" }}
           maxFileBytes={10 * 1024 * 1024}
           maxPages={10}
           onSelectFile={() => {}}

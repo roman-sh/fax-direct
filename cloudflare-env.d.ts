@@ -20,6 +20,7 @@ interface __BaseEnv_CloudflareEnv {
 	FAX_SESSIONS: DurableObjectNamespace /* FaxSession from fax-direct */ | DurableObjectNamespace<import("./worker").FaxSession>;
 	FAX_POLLING_COORDINATOR: DurableObjectNamespace /* FaxPollingCoordinator from fax-direct */ | DurableObjectNamespace<import("./worker").FaxPollingCoordinator>;
 	WORKER_SELF_REFERENCE: Fetcher /* fax-direct-dev */ | Service<typeof import("./worker").default>;
+	DOCUMENT_PREPARATION_WORKFLOW: Workflow<Parameters<import("./worker").DocumentPreparationWorkflow['run']>[0]['payload']>;
 	FAX_DELIVERY_WORKFLOW: Workflow<Parameters<import("./worker").FaxDeliveryWorkflow['run']>[0]['payload']>;
 	PAYMENT_WORKFLOW: Workflow<Parameters<import("./worker").PaymentWorkflow['run']>[0]['payload']>;
 	PAYMENT_RECONCILIATION_WORKFLOW: Workflow<Parameters<import("./worker").PaymentReconciliationWorkflow['run']>[0]['payload']>;
@@ -48,6 +49,7 @@ declare namespace Cloudflare {
 		FAX_SESSIONS: DurableObjectNamespace /* FaxSession from fax-direct */;
 		FAX_POLLING_COORDINATOR: DurableObjectNamespace /* FaxPollingCoordinator from fax-direct */;
 		WORKER_SELF_REFERENCE: Fetcher /* fax-direct-dev */;
+		DOCUMENT_PREPARATION_WORKFLOW: Workflow<Parameters<import("./worker").DocumentPreparationWorkflow['run']>[0]['payload']>;
 		FAX_DELIVERY_WORKFLOW: Workflow<Parameters<import("./worker").FaxDeliveryWorkflow['run']>[0]['payload']>;
 		PAYMENT_WORKFLOW: Workflow<Parameters<import("./worker").PaymentWorkflow['run']>[0]['payload']>;
 		PAYMENT_RECONCILIATION_WORKFLOW: Workflow<Parameters<import("./worker").PaymentReconciliationWorkflow['run']>[0]['payload']>;

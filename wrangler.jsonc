@@ -51,6 +51,11 @@
   ],
   "workflows": [
     {
+      "name": "document-preparation",
+      "binding": "DOCUMENT_PREPARATION_WORKFLOW",
+      "class_name": "DocumentPreparationWorkflow",
+    },
+    {
       "name": "fax-delivery",
       "binding": "FAX_DELIVERY_WORKFLOW",
       "class_name": "FaxDeliveryWorkflow",
@@ -163,6 +168,11 @@
         },
       ],
       "workflows": [
+        {
+          "name": "document-preparation-dev",
+          "binding": "DOCUMENT_PREPARATION_WORKFLOW",
+          "class_name": "DocumentPreparationWorkflow",
+        },
         {
           "name": "fax-delivery-dev",
           "binding": "FAX_DELIVERY_WORKFLOW",

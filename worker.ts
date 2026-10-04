@@ -8,6 +8,7 @@ import { isWebSocketUpgradeRequest } from "./src/shared/websocket/is-websocket-u
 export { FaxSession } from "./src/server/session/fax-session.durable-object"
 export { FaxPollingCoordinator } from "./src/server/fax/fax-polling-coordinator.durable-object"
 export { FaxDeliveryWorkflow } from "./src/server/fax/fax-delivery.workflow"
+export { DocumentPreparationWorkflow } from "./src/server/document/document-preparation.workflow"
 export { PaymentWorkflow } from "./src/server/payment/payment.workflow"
 export { PaymentReconciliationWorkflow } from "./src/server/payment/payment-reconciliation.workflow"
 
