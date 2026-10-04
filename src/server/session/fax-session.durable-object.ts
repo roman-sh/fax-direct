@@ -1,9 +1,8 @@
 import { DurableObject } from "cloudflare:workers"
 import { and, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/durable-sqlite"
-import { migrate } from "drizzle-orm/durable-sqlite/migrator"
 
-import migrations from "../../../drizzle/fax-session/migrations"
+import faxSessionSchemaSql from "@/server/session/fax-session.sql"
 import {
   faxSessionTable,
   type FaxSessionRow,
@@ -44,23 +43,25 @@ type FaxSessionDatabase = ReturnType<typeof createFaxSessionDatabase>
 
 /**
  * Each Durable Object represents one browser fax session and owns a separate
- * SQLite database. Drizzle runs the embedded schema migrations in each object
- * and keeps database queries typed from the shared table definition.
+ * SQLite database. The object creates its table when the session first reaches
+ * it; Drizzle keeps all later database queries typed from the shared schema.
  */
 export class FaxSession extends DurableObject<CloudflareEnv> {
   private readonly db: FaxSessionDatabase
 
   /**
    * Prepares the per-session database before Cloudflare delivers any request or
-   * RPC call: apply migrations, ensure its single row exists, and discard the
-   * obsolete pre-SQL test value.
+   * RPC call: create the current table, ensure its single row exists, and
+   * discard the obsolete pre-SQL test value.
    */
   constructor(ctx: DurableObjectState, env: CloudflareEnv) {
     super(ctx, env)
     this.db = createFaxSessionDatabase(ctx.storage)
 
     ctx.blockConcurrencyWhile(async () => {
-      await migrate(this.db, migrations)
+      // Every new Durable Object starts with an empty SQLite database. Create
+      // the complete current schema directly instead of replaying migrations.
+      ctx.storage.sql.exec(faxSessionSchemaSql)
 
       this.db
         .insert(faxSessionTable)

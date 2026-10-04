@@ -140,13 +140,16 @@ safe to bundle into the browser.
 | `npm run logs:workflow` | Describe the latest delivery Workflow instance |
 | `npm run build` | Build the Next.js application |
 | `npm run preview` | Build and preview through OpenNext/Cloudflare |
-| `npm run deploy` | Build and deploy the Worker to Cloudflare |
+| `npm run deploy` | Build and deploy the production Worker |
+| `npm run deploy:dev` | Build and deploy the isolated dev Worker |
 | `npm run cf-typegen` | Regenerate TypeScript types for Cloudflare bindings |
 | `npm run config:seed` | Validate and seed local `market:IL` KV data |
-| `npm run config:publish` | Validate and publish remote `market:IL` KV data |
+| `npm run config:publish` | Validate and publish production `market:IL` KV data |
+| `npm run config:publish:dev` | Validate and publish dev `market:IL` KV data |
 | `npm run db:d1:generate` | Generate a D1 migration from the Drizzle schema |
 | `npm run db:d1:migrate:local` | Apply D1 migrations locally |
-| `npm run db:d1:migrate:remote` | Apply D1 migrations in Cloudflare |
+| `npm run db:d1:migrate:remote` | Apply production D1 migrations in Cloudflare |
+| `npm run db:d1:migrate:dev` | Apply dev D1 migrations in Cloudflare |
 | `npm run interfax:test` | Send a diagnostic fax using `.dev.vars` credentials |
 
 `npm run dev` is useful for interface work, but the current internal Durable

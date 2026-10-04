@@ -1,9 +1,7 @@
 /**
- * Manually maintained source of truth for each FaxSession Durable Object's
- * private SQLite database. After changing this file, `npm run db:generate`
- * creates the SQL migration files under `drizzle/fax-session`. When a Durable
- * Object starts, its constructor applies any migration that its own database
- * has not run yet. This is per-session storage, not the application's D1.
+ * Typed model for each FaxSession Durable Object's private SQLite database.
+ * Keep this definition aligned with `fax-session.sql`, which creates the table
+ * when a new session object starts. This is not the application's global D1.
  */
 import { sql } from "drizzle-orm"
 import {

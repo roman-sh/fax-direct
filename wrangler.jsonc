@@ -150,20 +150,20 @@
       "kv_namespaces": [
         {
           "binding": "MARKET_CONFIG",
-          "id": "c698a6ad54a348548908eb1e24dc7d83",
+          "id": "d7731e629510428e8213d3b23a14c46b",
         },
       ],
       "r2_buckets": [
         {
           "binding": "FAX_DOCUMENTS",
-          "bucket_name": "fax-direct-documents",
+          "bucket_name": "fax-direct-documents-dev",
         },
       ],
       "d1_databases": [
         {
           "binding": "APP_DATABASE",
-          "database_name": "fax-direct",
-          "database_id": "ec189b33-c584-4acf-9c68-dcc5c80b305e",
+          "database_name": "fax-direct-dev",
+          "database_id": "d2d86bda-72c8-4a02-acd3-2ea42fdbabb3",
           "migrations_dir": "drizzle/d1",
         },
       ],
@@ -194,12 +194,10 @@
           {
             "name": "FAX_SESSIONS",
             "class_name": "FaxSession",
-            "script_name": "fax-direct",
           },
           {
             "name": "FAX_POLLING_COORDINATOR",
             "class_name": "FaxPollingCoordinator",
-            "script_name": "fax-direct",
           },
         ],
       },

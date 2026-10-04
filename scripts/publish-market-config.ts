@@ -8,8 +8,22 @@ import { marketConfigSchema } from "../src/server/config/market-config.schema"
 async function main() {
   const args = process.argv.slice(2)
   const target = args.includes("--remote") ? "--remote" : "--local"
+  const environmentIndex = args.indexOf("--env")
+  const environment =
+    environmentIndex === -1 ? undefined : args[environmentIndex + 1]
+
+  if (environmentIndex !== -1 && !environment) {
+    throw new Error("--env requires an environment name.")
+  }
+
   const market =
-    args.find((argument) => !argument.startsWith("--"))?.toUpperCase() ?? "IL"
+    args
+      .find(
+        (argument, index) =>
+          !argument.startsWith("--") && index !== environmentIndex + 1
+      )
+      ?.toUpperCase() ?? "IL"
+  const environmentArgs = environment ? ["--env", environment] : []
 
   if (market !== "IL") {
     throw new Error(`Unsupported market "${market}".`)
@@ -31,6 +45,7 @@ async function main() {
     "put",
     key,
     "--binding=MARKET_CONFIG",
+    ...environmentArgs,
     target,
     "--path",
     configPath,
@@ -43,6 +58,7 @@ async function main() {
       "get",
       key,
       "--binding=MARKET_CONFIG",
+      ...environmentArgs,
       target,
       "--text",
     ],
@@ -55,7 +71,7 @@ async function main() {
   }
 
   console.log(
-    `Published and verified ${key} in ${target === "--remote" ? "remote" : "local"} KV.`
+    `Published and verified ${key} in ${environment ? `${environment} ` : ""}${target === "--remote" ? "remote" : "local"} KV.`
   )
 }
 
