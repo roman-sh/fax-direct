@@ -202,9 +202,13 @@
         ],
       },
       "vars": {
+        "CLOUDCONVERT_BASE_URL": "https://sandbox.api.cloudconvert.com/v2",
         "PAYME_BASE_URL": "https://sandbox.payme.io/api",
         "PAYME_CALLBACK_URL": "https://fax-direct-dev.shmigelsky.workers.dev/api/webhooks/payment",
         "PAYME_RETURN_URL": "https://fax-direct-dev.shmigelsky.workers.dev/payment/return",
+        // Non-secret S3 endpoint details for presigning access to this dev bucket.
+        "R2_ACCOUNT_ID": "094b9620db11564b5864c0afaebae778",
+        "R2_BUCKET_NAME": "fax-direct-documents-dev",
       },
     },
   },
