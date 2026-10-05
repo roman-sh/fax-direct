@@ -25,6 +25,7 @@ const DOCUMENT = {
   originalName: "two_pages.pdf",
   pageCount: 2,
   sizeBytes: 399873,
+  format: "pdf",
   status: "ready",
 } as const
 

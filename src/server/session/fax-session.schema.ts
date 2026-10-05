@@ -18,6 +18,7 @@ import {
 } from "@/shared/session/fax-session-status"
 import {
   DOCUMENT_ERROR_CODES,
+  DOCUMENT_FORMATS,
   FAX_FAILURE_SEMANTIC_CODES,
 } from "@/shared/session/fax-session.types"
 
@@ -30,6 +31,9 @@ export const faxSessionTable = sqliteTable(
     documentOriginalName: text("document_original_name"),
     documentPageCount: integer("document_page_count"),
     documentSizeBytes: integer("document_size_bytes"),
+    documentFormat: text("document_format", {
+      enum: DOCUMENT_FORMATS,
+    }),
     documentStatus: text("document_status", {
       enum: DOCUMENT_STATUS_VALUES,
     }),
@@ -67,6 +71,12 @@ export const faxSessionTable = sqliteTable(
   },
   (table) => [
     check("fax_session_singleton", sql`${table.id} = 1`),
+    check(
+      "fax_session_document_format",
+      sql`${table.documentFormat} IS NULL OR ${table.documentFormat} IN (${sql.raw(
+        DOCUMENT_FORMATS.map((format) => `'${format}'`).join(", ")
+      )})`
+    ),
     check(
       "fax_session_document_status",
       sql`${table.documentStatus} IS NULL OR ${table.documentStatus} IN (${sql.raw(

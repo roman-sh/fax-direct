@@ -242,6 +242,8 @@ function getDocumentErrorMessage(
       return `גודל הקובץ המרבי הוא ${formatMegabytes(maxFileBytes)}MB.`
     case "INVALID_FILE_TYPE":
       return "ניתן להעלות קובצי PDF בלבד."
+    case "INVALID_IMAGE":
+      return "לא הצלחנו לקרוא את קובץ התמונה."
     case "INVALID_PDF":
       return "לא הצלחנו לקרוא את קובץ ה-PDF."
     case "TOO_MANY_PAGES":

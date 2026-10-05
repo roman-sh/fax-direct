@@ -25,6 +25,7 @@ import {
 import { DOCUMENT_STATUS } from "@/shared/session/fax-session-status"
 import type {
   FaxDocumentErrorCode,
+  FaxDocumentFormat,
   FaxSessionQuote,
 } from "@/shared/session/fax-session.types"
 
@@ -36,6 +37,8 @@ type DocumentPreparationResult =
   | {
       status: typeof DOCUMENT_STATUS.ready
       pageCount: number
+      sizeBytes: number
+      format: FaxDocumentFormat
       quote: FaxSessionQuote
     }
   | {
@@ -43,11 +46,21 @@ type DocumentPreparationResult =
       error: FaxDocumentErrorCode
     }
 
-type DocumentPreparationInput = {
+type StoredDocument = {
   bytes: ArrayBuffer
   originalName: string
-  config: MarketConfig
+  sizeBytes: number
 }
+
+type DocumentValidationResult =
+  | {
+      isValid: true
+      pageCount: number
+    }
+  | {
+      isValid: false
+      error: FaxDocumentErrorCode
+    }
 
 type DetectedDocument = {
   objectKey: string
@@ -58,15 +71,16 @@ type DetectedDocument = {
 type PreprocessedDocumentFile = {
   objectKey: string
   originalName: string
-  contentType: string
 }
 
 type PreprocessedDocument =
   | (PreprocessedDocumentFile & {
       kind: "pdf"
+      format: "pdf"
     })
   | (PreprocessedDocumentFile & {
       kind: "image"
+      format: "jpg" | "png"
     })
   | {
       kind: "unsupported"
@@ -135,7 +149,7 @@ export class DocumentPreparationWorkflow extends WorkflowEntrypoint<
             kind: "pdf",
             objectKey: detectedDocument.objectKey,
             originalName: detectedDocument.originalName,
-            contentType: detectedDocument.format.mime,
+            format: "pdf",
           }
           break
 
@@ -145,7 +159,7 @@ export class DocumentPreparationWorkflow extends WorkflowEntrypoint<
             kind: "image",
             objectKey: detectedDocument.objectKey,
             originalName: detectedDocument.originalName,
-            contentType: detectedDocument.format.mime,
+            format: detectedDocument.format.ext,
           }
           break
 
@@ -171,15 +185,77 @@ export class DocumentPreparationWorkflow extends WorkflowEntrypoint<
           }
       }
 
-      result = await step.do("process-document", async () => {
-        return processDocument(
-          preprocessedDocument,
-          this.env.FAX_DOCUMENTS,
-          await getMarketConfig("IL", this.env.MARKET_CONFIG)
-        )
+      result = await step.do("prepare-document-for-fax", async () => {
+        switch (preprocessedDocument.kind) {
+          case "pdf": {
+            const storedDocument = await loadStoredDocument(
+              preprocessedDocument,
+              this.env.FAX_DOCUMENTS
+            )
+            const config = await getMarketConfig(
+              "IL",
+              this.env.MARKET_CONFIG
+            )
+            const validation = await validatePdfAndCountPages(
+              storedDocument,
+              config
+            )
+
+            if (!validation.isValid) {
+              return failedDocument(validation.error)
+            }
+
+            return {
+              status: DOCUMENT_STATUS.ready,
+              pageCount: validation.pageCount,
+              sizeBytes: storedDocument.sizeBytes,
+              format: preprocessedDocument.format,
+              quote: calculateFaxQuote(config),
+            }
+          }
+
+          case "image": {
+            const storedDocument = await loadStoredDocument(
+              preprocessedDocument,
+              this.env.FAX_DOCUMENTS
+            )
+            const images = this.env.IMAGES
+
+            if (!images) {
+              throw new Error(
+                "The Cloudflare Images binding is unavailable."
+              )
+            }
+
+            const config = await getMarketConfig(
+              "IL",
+              this.env.MARKET_CONFIG
+            )
+            const validation = await validateImageAndCountPages(
+              storedDocument,
+              images,
+              config
+            )
+
+            if (!validation.isValid) {
+              return failedDocument(validation.error)
+            }
+
+            return {
+              status: DOCUMENT_STATUS.ready,
+              pageCount: validation.pageCount,
+              sizeBytes: storedDocument.sizeBytes,
+              format: preprocessedDocument.format,
+              quote: calculateFaxQuote(config),
+            }
+          }
+
+          case "unsupported":
+            return failedDocument("INVALID_FILE_TYPE")
+        }
       })
     } catch (error) {
-      // Infrastructure and unexpected inspection failures cannot produce a
+      // Infrastructure and unexpected preparation failures cannot produce a
       // usable document, so publish a retryable processing failure.
       console.error("document_preparation_failed", {
         sessionId,
@@ -194,13 +270,17 @@ export class DocumentPreparationWorkflow extends WorkflowEntrypoint<
       return
     }
 
-    // Publish the inspection result through the session Durable Object. Its
+    // Publish the preparation result through the session Durable Object. Its
     // WebSocket broadcast updates every browser viewing this fax session.
     switch (result.status) {
       case DOCUMENT_STATUS.ready:
         await step.do("finalize-document", async () => {
           await sessionObject.finalizeDocument(
-            result.pageCount,
+            {
+              pageCount: result.pageCount,
+              sizeBytes: result.sizeBytes,
+              format: result.format,
+            },
             result.quote
           )
           return null
@@ -217,61 +297,48 @@ export class DocumentPreparationWorkflow extends WorkflowEntrypoint<
   }
 }
 
-/** Routes one preprocessed file to its final PDF or image processor. */
-async function processDocument(
-  document: PreprocessedDocument,
-  bucket: R2Bucket,
-  config: MarketConfig
-): Promise<DocumentPreparationResult> {
-  switch (document.kind) {
-    case "pdf": {
-      const storedFile = await bucket.get(document.objectKey)
+/** Loads the original bytes referenced by a preprocessed document from R2. */
+async function loadStoredDocument(
+  document: PreprocessedDocumentFile,
+  bucket: R2Bucket
+): Promise<StoredDocument> {
+  const storedFile = await bucket.get(document.objectKey)
 
-      if (!storedFile) {
-        throw new Error(
-          `Document '${document.objectKey}' disappeared from R2 before processing.`
-        )
-      }
+  if (!storedFile) {
+    throw new Error(
+      `Document '${document.objectKey}' disappeared from R2 during preparation.`
+    )
+  }
 
-      return preparePdfDocument(
-        {
-          bytes: await storedFile.arrayBuffer(),
-          originalName: document.originalName,
-          config,
-        },
-        document.contentType
-      )
-    }
+  const bytes = await storedFile.arrayBuffer()
 
-    case "image":
-      return prepareImageDocument()
-
-    case "unsupported":
-      return unsupportedDocument()
+  return {
+    bytes,
+    originalName: document.originalName,
+    sizeBytes: bytes.byteLength,
   }
 }
 
-/** Runs the existing PDF validation path after the bytes identify as PDF. */
-async function preparePdfDocument(
-  input: DocumentPreparationInput,
-  mimeType: string
-): Promise<DocumentPreparationResult> {
-  const file = new File([input.bytes], input.originalName, {
-    type: mimeType,
+/** Validates a PDF and returns the page count needed for fax delivery. */
+async function validatePdfAndCountPages(
+  document: StoredDocument,
+  config: MarketConfig
+): Promise<DocumentValidationResult> {
+  const file = new File([document.bytes], document.originalName, {
+    type: "application/pdf",
   })
 
   try {
-    const { pageCount } = await inspectPdfFile(file, input.config.fax)
+    const { pageCount } = await inspectPdfFile(file, config.fax)
 
     return {
-      status: DOCUMENT_STATUS.ready,
+      isValid: true,
       pageCount,
-      quote: calculateFaxQuote(input.config),
     }
   } catch (error) {
     if (error instanceof PdfInspectionError) {
       return {
-        status: DOCUMENT_STATUS.failed,
+        isValid: false,
         error: error.code,
       }
     }
@@ -280,14 +347,54 @@ async function preparePdfDocument(
   }
 }
 
-/** Placeholder for images that InterFAX can accept without conversion. */
-function prepareImageDocument(): DocumentPreparationResult {
-  return unsupportedDocument()
+/** Decodes a native image without changing its stored bytes. */
+async function validateImageAndCountPages(
+  document: StoredDocument,
+  images: ImagesBinding,
+  config: MarketConfig
+): Promise<DocumentValidationResult> {
+  if (document.sizeBytes > config.fax.maxFileBytes) {
+    return {
+      isValid: false,
+      error: "FILE_TOO_LARGE",
+    }
+  }
+
+  try {
+    // Cloudflare must successfully decode the bytes as an image. `info()`
+    // validates them without transforming or replacing the R2 object.
+    await images.info(new Blob([document.bytes]).stream())
+
+    return {
+      isValid: true,
+      pageCount: 1,
+    }
+  } catch (error) {
+    if (isImagesError(error)) {
+      return {
+        isValid: false,
+        error: "INVALID_IMAGE",
+      }
+    }
+
+    throw error
+  }
 }
 
-function unsupportedDocument(): DocumentPreparationResult {
+/** Creates the final session result for a document rejected during preparation. */
+function failedDocument(
+  error: FaxDocumentErrorCode
+): DocumentPreparationResult {
   return {
     status: DOCUMENT_STATUS.failed,
-    error: "INVALID_FILE_TYPE",
+    error,
   }
+}
+
+function isImagesError(error: unknown): error is ImagesError {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    typeof error.code === "number"
+  )
 }

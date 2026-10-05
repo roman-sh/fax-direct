@@ -10,10 +10,15 @@ export type FaxSessionDocumentFile = {
   sizeBytes: number
 }
 
+export const DOCUMENT_FORMATS = ["pdf", "jpg", "png"] as const
+
+export type FaxDocumentFormat = (typeof DOCUMENT_FORMATS)[number]
+
 /** A successfully inspected document that is safe to use for fax delivery. */
 export type FaxSessionReadyDocument = FaxSessionDocumentFile & {
   status: "ready"
   pageCount: number
+  format: FaxDocumentFormat
 }
 
 export const DOCUMENT_ERROR_CODES = [
@@ -21,6 +26,7 @@ export const DOCUMENT_ERROR_CODES = [
   "EMPTY_PDF",
   "FILE_TOO_LARGE",
   "INVALID_FILE_TYPE",
+  "INVALID_IMAGE",
   "INVALID_PDF",
   "TOO_MANY_PAGES",
   "PROCESSING_FAILED",
@@ -40,7 +46,8 @@ export type FaxDocumentErrorCode =
  * the metadata shared by every state:
  *
  * - `{ status: "processing", ...file }` — inspection has not finished.
- * - `{ status: "ready", ...file, pageCount: 2 }` — ready for fax delivery.
+ * - `{ status: "ready", ...file, pageCount: 2, format: "pdf" }`
+ *   — ready for fax delivery.
  * - `{ status: "failed", ...file, error: "INVALID_PDF" }` — inspection failed.
  *
  * TypeScript narrows the union after checking the status. For example,
@@ -54,6 +61,7 @@ export type FaxSessionDocument =
   | (FaxSessionDocumentFile & {
       status: "ready"
       pageCount: number
+      format: FaxDocumentFormat
     })
   | (FaxSessionDocumentFile & {
       status: "failed"

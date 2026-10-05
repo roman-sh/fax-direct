@@ -10,6 +10,7 @@ import {
 import type { FaxSessionEvent } from "@/shared/session/fax-session-event"
 import {
   type FaxDocumentErrorCode,
+  type FaxDocumentFormat,
   type FaxSessionDocument,
   type FaxSessionData,
   type FaxSessionDocumentFile,
@@ -206,6 +207,7 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
           documentOriginalName: document.originalName,
           documentPageCount: null,
           documentSizeBytes: document.sizeBytes,
+          documentFormat: null,
           documentStatus: DOCUMENT_STATUS.processing,
           documentError: null,
           quoteAmount: null,
@@ -233,13 +235,17 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
   }
 
   /**
-   * Finalizes a processing document after successful inspection. The existing
-   * R2 metadata remains unchanged; only the discovered page count and `ready`
-   * status are added. The quote is restored when a recipient already exists
-   * because pricing depends on both inputs.
+   * Finalizes a processing document after successful inspection. Converted
+   * files replace the original R2 object, so the normalized format and
+   * final byte size are stored alongside the page count. The quote is restored
+   * when a recipient already exists because pricing depends on both inputs.
    */
   async finalizeDocument(
-    pageCount: number,
+    preparedDocument: {
+      pageCount: number
+      sizeBytes: number
+      format: FaxDocumentFormat
+    },
     quote: FaxSessionQuote
   ): Promise<FaxSessionData | null> {
     return this.updateSession(() => {
@@ -258,7 +264,9 @@ export class FaxSession extends DurableObject<CloudflareEnv> {
       const updated = this.db
         .update(faxSessionTable)
         .set({
-          documentPageCount: pageCount,
+          documentPageCount: preparedDocument.pageCount,
+          documentSizeBytes: preparedDocument.sizeBytes,
+          documentFormat: preparedDocument.format,
           documentStatus: DOCUMENT_STATUS.ready,
           documentError: null,
           ...(hasRecipient
@@ -680,15 +688,16 @@ function documentFromRow(row: FaxSessionRow): FaxSessionDocument | null {
       }
 
     case DOCUMENT_STATUS.ready:
-      // A ready document must include the page count found by inspection.
-      if (!row.documentPageCount) {
-        throw new Error("Ready document has no page count.")
+      // A ready document requires the metadata verified during preparation.
+      if (!row.documentPageCount || !row.documentFormat) {
+        throw new Error("Ready document metadata is incomplete.")
       }
 
       return {
         ...file,
         status: DOCUMENT_STATUS.ready,
         pageCount: row.documentPageCount,
+        format: row.documentFormat,
       }
 
     case DOCUMENT_STATUS.failed:
