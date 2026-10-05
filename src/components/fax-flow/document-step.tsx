@@ -74,7 +74,7 @@ export function DocumentStep({
     <>
       <CardHeading
         title="בחירת המסמך"
-        description="בחרו קובץ PDF, JPG או PNG שתרצו לשלוח."
+        description="בחרו קובץ PDF או תמונה לשליחה."
       />
       <CardContent className="flex min-h-0 flex-1 flex-col gap-5 p-7">
         <input
@@ -139,7 +139,7 @@ export function DocumentStep({
             ) : null}
           </span>
           <span className="font-mono text-[0.7rem] tracking-wide text-muted-foreground">
-            PDF, JPG, PNG · עד {maxPages} עמודים · עד {formatMegabytes(maxFileBytes)}MB
+            עד {maxPages} עמודים · עד {formatMegabytes(maxFileBytes)}MB
           </span>
         </label>
         <p className="text-center text-sm text-muted-foreground">
@@ -241,7 +241,7 @@ function getDocumentErrorMessage(
     case "FILE_TOO_LARGE":
       return `גודל הקובץ המרבי הוא ${formatMegabytes(maxFileBytes)}MB.`
     case "INVALID_FILE_TYPE":
-      return "ניתן להעלות קובצי PDF, JPG או PNG בלבד."
+      return "סוג הקובץ אינו נתמך. בדקו את רשימת הקבצים הנתמכים."
     case "INVALID_IMAGE":
       return "לא הצלחנו לקרוא את קובץ התמונה."
     case "INVALID_PDF":

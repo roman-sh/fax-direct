@@ -59,8 +59,8 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
       // without claiming any of it arrived. This line opens that stretch.
       sendingConnecting: "העברת המסמך מתבצעת כעת.",
       sendingProgress: `{pagesSent, plural,
-        =1 {נשלח עמוד אחד מתוך {pagesSubmitted, plural, =1 {עמוד אחד} =2 {שניים} other {# עמודים}}.}
-        =2 {נשלחו שני עמודים מתוך {pagesSubmitted, plural, =2 {שניים} other {# עמודים}}.}
+        =1 {נשלח עמוד {pagesSent} מתוך {pagesSubmitted}.}
+        =2 {נשלחו {pagesSent} עמודים מתוך {pagesSubmitted}.}
         other {נשלחו # מתוך {pagesSubmitted} עמודים.}
       }`,
       finalizing: "כל עמודי המסמך שודרו. ממתינים לאישור המסירה.",

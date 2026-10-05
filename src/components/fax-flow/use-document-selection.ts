@@ -38,7 +38,7 @@ export function useDocumentSelection({
     if (!isAccepted) {
       setSelection({
         status: "invalid",
-        message: "ניתן להעלות קובצי PDF, JPG או PNG בלבד.",
+        message: "סוג הקובץ אינו נתמך. בדקו את רשימת הקבצים הנתמכים.",
       })
       return
     }

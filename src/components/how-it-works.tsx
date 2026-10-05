@@ -5,6 +5,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert"
+import { SupportedFormatsPopover } from "@/components/supported-formats-popover"
 import { formatFaxQuote } from "@/lib/format-fax-quote"
 import type { FaxSessionQuote } from "@/shared/session/fax-session.types"
 
@@ -23,7 +24,8 @@ export function HowItWorks({ price }: { price: FaxSessionQuote }) {
         <AlertDescription className="leading-relaxed">
           מעלים מסמך, מזינים מספר פקס בישראל ומשלמים {formatFaxQuote(price)}{" "}
           בתשלום חד־פעמי באמצעות ביט. לאחר התשלום ניתן לעקוב אחר מצב השליחה בזמן
-          אמת. אין צורך בהרשמה או במנוי. המסמך נמחק מהמערכת לאחר 24 שעות.
+          אמת. אין צורך בהרשמה או במנוי. המסמך נמחק מהמערכת לאחר 24 שעות. {" "}
+          <SupportedFormatsPopover />
         </AlertDescription>
       </Alert>
     </section>
