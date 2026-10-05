@@ -85,7 +85,7 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
       CONNECTION_FAILED:
         "החיבור למכשיר הפקס נכשל. בדקו את המספר ונסו שוב.",
       DOCUMENT_PROCESSING_FAILED:
-        "הכנת המסמך נכשלה. העלו קובץ PDF אחר.",
+        "הכנת המסמך נכשלה. העלו קובץ אחר.",
       CANCELED: "השליחה בוטלה. נסו שוב מאוחר יותר.",
       SERVICE_UNAVAILABLE: "השירות אינו זמין כעת. נסו שוב מאוחר יותר.",
       UNKNOWN_FAILURE: "משהו השתבש אצלנו. נסו שוב מאוחר יותר.",
@@ -132,7 +132,7 @@ const TEMPLATES_BY_LOCALE: Record<FaxUiLocale, FaxMessageTemplates> = {
       CONNECTION_FAILED:
         "Connecting to the fax machine failed. Check the number and try again.",
       DOCUMENT_PROCESSING_FAILED:
-        "Preparing the document failed. Upload a different PDF file.",
+        "Preparing the document failed. Upload a different file.",
       CANCELED: "The delivery was cancelled. Try again later.",
       SERVICE_UNAVAILABLE:
         "The service is unavailable right now. Try again later.",

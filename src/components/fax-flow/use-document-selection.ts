@@ -31,14 +31,14 @@ export function useDocumentSelection({
     }
 
     const extension = getDocumentExtension(nextFile.name)
-    const isAccepted = ACCEPTED_DOCUMENT_FORMATS.some(
+    const isAccepted = Object.keys(ACCEPTED_DOCUMENT_FORMATS).some(
       (format) => format === extension
     )
 
     if (!isAccepted) {
       setSelection({
         status: "invalid",
-        message: "ניתן להעלות קובצי PDF בלבד.",
+        message: "ניתן להעלות קובצי PDF, JPG או PNG בלבד.",
       })
       return
     }
@@ -54,7 +54,7 @@ export function useDocumentSelection({
     if (nextFile.size === 0) {
       setSelection({
         status: "invalid",
-        message: "קובץ ה-PDF ריק.",
+        message: "הקובץ ריק.",
       })
       return
     }

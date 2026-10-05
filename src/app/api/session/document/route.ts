@@ -3,7 +3,7 @@
  *
  * The route claims the session before touching its shared R2 object, stores the
  * original bytes, starts durable preparation, and returns the authoritative
- * `processing` session without waiting for PDF inspection.
+ * `processing` session without waiting for document validation.
  */
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 
@@ -29,7 +29,7 @@ export async function POST(request: Request): Promise<Response> {
     const uploadedFile = formData.get("file")
 
     if (!(uploadedFile instanceof File)) {
-      return errorResponse("FILE_REQUIRED", "יש לבחור קובץ PDF.", 400)
+      return errorResponse("FILE_REQUIRED", "יש לבחור קובץ.", 400)
     }
 
     file = uploadedFile

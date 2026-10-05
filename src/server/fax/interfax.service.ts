@@ -1,6 +1,6 @@
 /**
  * Implements Fax Direct's small InterFAX REST boundary. The service submits
- * one PDF directly or reads many provider statuses. Orchestration and
+ * one document directly or reads many provider statuses. Orchestration and
  * persistence remain elsewhere.
  */
 import {
@@ -13,18 +13,22 @@ import {
   readJson,
 } from "@/server/fax/interfax.error"
 import { INTERFAX_BASE_URL } from "@/config"
+import { ACCEPTED_DOCUMENT_FORMATS } from "@/shared/document/document-formats"
+import type { FaxDocumentFormat } from "@/shared/session/fax-session.types"
 
 const INTERFAX_SINGLE_ATTEMPT = "1"
 const INTERFAX_FINE_RESOLUTION = "Fine"
+const INTERFAX_FIT_TO_PAGE_SCALE = "scale"
 
 type InterfaxEnvironment = Pick<
   CloudflareEnv,
   "INTERFAX_USERNAME" | "INTERFAX_PASSWORD"
 >
 
-/** A PDF source whose bytes can be loaded immediately before submission. */
+/** A validated document whose bytes can be loaded before submission. */
 export type InterfaxDocumentSource = {
   sizeBytes: number
+  format: FaxDocumentFormat
   read(): Promise<ArrayBuffer>
 }
 
@@ -69,7 +73,7 @@ export class InterfaxService {
   }
 
   /**
-   * Submits one PDF and returns the provider transaction ID from the Location
+   * Submits one document and returns the provider transaction ID from the Location
    * header. This POST is deliberately attempted once: retrying an ambiguous
    * network failure could submit the same paid fax twice.
    */
@@ -78,22 +82,27 @@ export class InterfaxService {
     faxNumber,
     reference,
   }: SendFaxInput): Promise<SendFaxResult> {
-    const pdf = await readDocument(document)
+    const bytes = await readDocument(document)
     const url = new URL("/outbound/faxes", INTERFAX_BASE_URL)
     url.searchParams.set("faxNumber", faxNumber)
     url.searchParams.set("reference", reference)
     url.searchParams.set("resolution", INTERFAX_FINE_RESOLUTION)
     url.searchParams.set("retriesToPerform", INTERFAX_SINGLE_ATTEMPT)
     url.searchParams.set("pageHeader", "N")
+    if (document.format !== "pdf") {
+      // Let InterFAX fit a native image onto a fax page during rendering.
+      // The image bytes in R2 remain unchanged.
+      url.searchParams.set("fitToPage", INTERFAX_FIT_TO_PAGE_SCALE)
+    }
 
     const response = await fetch(url, {
       method: "POST",
       headers: {
         Accept: "application/json",
         Authorization: this.authorization,
-        "Content-Type": "application/pdf",
+        "Content-Type": ACCEPTED_DOCUMENT_FORMATS[document.format],
       },
-      body: pdf,
+      body: bytes,
     })
 
     if (response.status !== 201) {
@@ -164,14 +173,14 @@ export class InterfaxService {
 // HELPERS
 // -----------------------------------------------------------------------------
 
-/** Loads the complete PDF and verifies the storage adapter's size contract. */
+/** Loads the complete document and verifies the storage adapter's size contract. */
 async function readDocument(
   document: InterfaxDocumentSource
 ): Promise<ArrayBuffer> {
   if (!Number.isSafeInteger(document.sizeBytes) || document.sizeBytes <= 0) {
     throw new InterfaxServiceError(
       "INVALID_DOCUMENT_SOURCE",
-      "The PDF size is invalid."
+      "The document size is invalid."
     )
   }
 

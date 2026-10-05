@@ -74,13 +74,13 @@ export function DocumentStep({
     <>
       <CardHeading
         title="בחירת המסמך"
-        description="בחרו את קובץ ה־PDF שתרצו לשלוח."
+        description="בחרו קובץ PDF, JPG או PNG שתרצו לשלוח."
       />
       <CardContent className="flex min-h-0 flex-1 flex-col gap-5 p-7">
         <input
           id="fax-document"
           type="file"
-          accept={ACCEPTED_DOCUMENT_FORMATS.map(
+          accept={Object.keys(ACCEPTED_DOCUMENT_FORMATS).map(
             (format) => `.${format}`
           ).join(",")}
           disabled={isBusy}
@@ -124,7 +124,7 @@ export function DocumentStep({
               title={displayedName}
               className="max-w-xl truncate text-base font-semibold"
             >
-              {displayedName ?? "גררו לכאן קובץ PDF"}
+              {displayedName ?? "גררו לכאן קובץ PDF או תמונה"}
             </span>
             {statusMessage ? (
               <span
@@ -139,7 +139,7 @@ export function DocumentStep({
             ) : null}
           </span>
           <span className="font-mono text-[0.7rem] tracking-wide text-muted-foreground">
-            PDF · עד {maxPages} עמודים · עד {formatMegabytes(maxFileBytes)}MB
+            PDF, JPG, PNG · עד {maxPages} עמודים · עד {formatMegabytes(maxFileBytes)}MB
           </span>
         </label>
         <p className="text-center text-sm text-muted-foreground">
@@ -241,7 +241,7 @@ function getDocumentErrorMessage(
     case "FILE_TOO_LARGE":
       return `גודל הקובץ המרבי הוא ${formatMegabytes(maxFileBytes)}MB.`
     case "INVALID_FILE_TYPE":
-      return "ניתן להעלות קובצי PDF בלבד."
+      return "ניתן להעלות קובצי PDF, JPG או PNG בלבד."
     case "INVALID_IMAGE":
       return "לא הצלחנו לקרוא את קובץ התמונה."
     case "INVALID_PDF":

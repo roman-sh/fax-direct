@@ -60,7 +60,7 @@ export class FaxDeliveryWorkflow extends WorkflowEntrypoint<
         throw new Error(`Fax session ${sessionId} has not been paid.`)
       }
 
-      // PDF and phone validation happened before they entered FaxSession. The
+      // Document and phone validation happened before they entered FaxSession. The
       // Workflow checks only that the values required for delivery are present.
       // The session was already initialized as `preparing` for this attempt.
       if (

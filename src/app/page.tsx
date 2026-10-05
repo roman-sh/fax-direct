@@ -23,10 +23,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const price = formatFaxQuote(config.price)
 
   return {
-    description: `שולחים פקס אונליין בישראל בלי מכונת פקס ובלי הרשמה. מעלים קובץ PDF, מזינים את מספר הנמען, משלמים ${price} ועוקבים אחרי מצב השליחה באותו עמוד.`,
+    description: `שולחים פקס אונליין בישראל בלי מכונת פקס ובלי הרשמה. מעלים קובץ PDF או תמונה, מזינים את מספר הנמען, משלמים ${price} ועוקבים אחרי מצב השליחה באותו עמוד.`,
     openGraph: {
       title: "שליחת פקס אונליין ללא הרשמה | Fax Direct",
-      description: `שליחת פקס חד־פעמית מהדפדפן: קובץ PDF, מספר נמען, ${price} ומעקב אחרי המסירה.`,
+      description: `שליחת פקס חד־פעמית מהדפדפן: קובץ PDF או תמונה, מספר נמען, ${price} ומעקב אחרי המסירה.`,
       locale: "he_IL",
       type: "website",
     },

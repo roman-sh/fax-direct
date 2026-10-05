@@ -50,12 +50,13 @@ export async function createR2InterfaxDocumentSource(
 
   return {
     sizeBytes: object.size,
+    format: document.format,
     read: () =>
       readR2Document(bucket, document.objectKey, object.etag, object.size),
   }
 }
 
-/** Reads the complete PDF while requiring the original R2 object version. */
+/** Reads the complete document while requiring the original R2 object version. */
 async function readR2Document(
   bucket: R2Bucket,
   objectKey: string,
