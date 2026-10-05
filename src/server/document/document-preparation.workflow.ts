@@ -1,5 +1,5 @@
 /**
- * Validates one uploaded PDF and publishes its final document state.
+ * Detects and prepares one uploaded document, then publishes its final state.
  *
  * The upload route has already claimed the session as `processing` and stored
  * the bytes in R2. This Workflow owns the slower preparation work so it can
@@ -10,7 +10,9 @@ import {
   type WorkflowEvent,
   type WorkflowStep,
 } from "cloudflare:workers"
+import { fileTypeFromBuffer } from "file-type"
 
+import type { MarketConfig } from "@/server/config/market-config.schema"
 import { getMarketConfig } from "@/server/config/market-config.service"
 import { calculateFaxQuote } from "@/server/quote/quote.service"
 import {
@@ -38,6 +40,12 @@ type DocumentPreparationResult =
       error: FaxDocumentErrorCode
     }
 
+type DocumentPreparationInput = {
+  bytes: ArrayBuffer
+  originalName: string
+  config: MarketConfig
+}
+
 /** Prepares the document currently claimed by one browser session. */
 export class DocumentPreparationWorkflow extends WorkflowEntrypoint<
   CloudflareEnv,
@@ -55,9 +63,9 @@ export class DocumentPreparationWorkflow extends WorkflowEntrypoint<
     let result: DocumentPreparationResult
 
     try {
-      // Run inspection as a durable step. Cloudflare records its result so a
-      // resumed Workflow does not repeat a successfully completed inspection.
-      result = await step.do("inspect-pdf", async () => {
+      // Run detection and preparation as one durable step. Cloudflare records
+      // its result so a resumed Workflow does not repeat successful work.
+      result = await step.do("prepare-document", async () => {
         // Load the document metadata and the market limits used to validate it.
         const [session, config] = await Promise.all([
           sessionObject.getSession(),
@@ -83,35 +91,11 @@ export class DocumentPreparationWorkflow extends WorkflowEntrypoint<
           )
         }
 
-        // Reconstruct the browser File expected by the existing PDF inspector.
-        const file = new File(
-          [await storedFile.arrayBuffer()],
-          document.originalName,
-          {
-            type: storedFile.httpMetadata?.contentType ?? "",
-          }
-        )
-
-        try {
-          const { pageCount } = await inspectPdfFile(file, config.fax)
-
-          return {
-            status: DOCUMENT_STATUS.ready,
-            pageCount,
-            quote: calculateFaxQuote(config),
-          }
-        } catch (error) {
-          // Expected document-validation failures become a final session state
-          // that the frontend can present to the user.
-          if (error instanceof PdfInspectionError) {
-            return {
-              status: DOCUMENT_STATUS.failed,
-              error: error.code,
-            }
-          }
-
-          throw error
-        }
+        return prepareDocument({
+          bytes: await storedFile.arrayBuffer(),
+          originalName: document.originalName,
+          config,
+        })
       })
     } catch (error) {
       // Infrastructure and unexpected inspection failures cannot produce a
@@ -149,5 +133,74 @@ export class DocumentPreparationWorkflow extends WorkflowEntrypoint<
         })
         break
     }
+  }
+}
+
+/** Detects the stored bytes and sends each supported family to its processor. */
+async function prepareDocument(
+  input: DocumentPreparationInput
+): Promise<DocumentPreparationResult> {
+  const detectedType = await fileTypeFromBuffer(input.bytes)
+
+  switch (detectedType?.ext) {
+    case "pdf":
+      return preparePdfDocument(input, detectedType.mime)
+
+    case "jpg":
+    case "png":
+    case "tif":
+      return prepareImageDocument()
+
+    case "heic":
+      return prepareConvertedDocument()
+
+    default:
+      return unsupportedDocument()
+  }
+}
+
+/** Runs the existing PDF validation path after the bytes identify as PDF. */
+async function preparePdfDocument(
+  input: DocumentPreparationInput,
+  mimeType: string
+): Promise<DocumentPreparationResult> {
+  const file = new File([input.bytes], input.originalName, {
+    type: mimeType,
+  })
+
+  try {
+    const { pageCount } = await inspectPdfFile(file, input.config.fax)
+
+    return {
+      status: DOCUMENT_STATUS.ready,
+      pageCount,
+      quote: calculateFaxQuote(input.config),
+    }
+  } catch (error) {
+    if (error instanceof PdfInspectionError) {
+      return {
+        status: DOCUMENT_STATUS.failed,
+        error: error.code,
+      }
+    }
+
+    throw error
+  }
+}
+
+/** Placeholder for images that InterFAX can accept without conversion. */
+function prepareImageDocument(): DocumentPreparationResult {
+  return unsupportedDocument()
+}
+
+/** Placeholder for formats that will first be converted to PDF. */
+function prepareConvertedDocument(): DocumentPreparationResult {
+  return unsupportedDocument()
+}
+
+function unsupportedDocument(): DocumentPreparationResult {
+  return {
+    status: DOCUMENT_STATUS.failed,
+    error: "INVALID_FILE_TYPE",
   }
 }

@@ -92,13 +92,9 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    // Store the uploaded file in R2 under the session ID. Preserve its MIME type
-    // because the preparation Workflow reconstructs the File from R2.
-    await env.FAX_DOCUMENTS.put(sessionId, file, {
-      httpMetadata: {
-        contentType: file.type,
-      },
-    })
+    // Store the original bytes in R2 under the session ID. The preparation
+    // Workflow detects the real file type from those bytes.
+    await env.FAX_DOCUMENTS.put(sessionId, file)
 
     // Start the document preparation Workflow after the file is stored in R2.
     // The Workflow uses the session ID to load and process the uploaded file.
